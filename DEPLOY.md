@@ -42,7 +42,7 @@ Esta aplicación está configurada para desplegarse automáticamente en Render.c
 4.  **Confirmar Despliegue**: Render detectará automáticamente el archivo `render.yaml`. Revisa los recursos (Servicio Web y MySQL como Private Service) y haz clic en **"Apply"**.
 
 **¡Listo!** Render creará automáticamente:
-- Una instancia de MySQL 8.0 corriendo como un **Private Service** con disco persistente.
+- Una instancia de MySQL 8.0 corriendo como un **Private Service**. (Nota: En el plan gratuito no hay persistencia de datos, se perderán al reiniciar el servicio).
 - Un servicio web Dockerizado corriendo PHP 8.2 y Apache.
 - Conectará ambos automáticamente mediante variables de entorno (DB_HOST, DB_PASSWORD, etc.).
 

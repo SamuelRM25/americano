@@ -19,7 +19,7 @@ services:
         fromService:
           name: portal-db
           type: pserv
-          property: MYSQL_PASSWORD
+          envVarKey: MYSQL_PASSWORD
       - key: DB_NAME
         value: student_portal
       - key: DB_PORT
@@ -42,7 +42,3 @@ services:
         value: admin
       - key: MYSQL_PASSWORD
         generateValue: true
-    disk:
-      name: mysql-data
-      mountPath: /var/lib/mysql
-      sizeGB: 1
