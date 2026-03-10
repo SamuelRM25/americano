@@ -202,12 +202,12 @@ $exams = $stmt->fetchAll();
                     <span class="font-medium">Asignar Tareas</span>
                 </a>
                 <a href="exams.php"
-                    class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
+                    class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-item-active group">
                     <i data-lucide="clipboard-list" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
                     <span class="font-medium">Asignar Exámenes</span>
                 </a>
                 <a href="chat.php"
-                    class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-item-active group">
+                    class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
                     <i data-lucide="message-square" class="w-5 h-5 text-accent-400"></i>
                     <span class="font-bold">Centro de Mensajes</span>
                 </a>

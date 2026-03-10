@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Colegio Americano</title>
+    <title>Login - Ing Samuel Ramírez</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="mt-10 pt-8 border-t border-white/5 text-center">
                     <p class="text-slate-600 text-[9px] font-black uppercase tracking-[0.3em]">
-                        Desarrollado por Colegio Americano Systems
+                        Desarrollado por Ing Samuel Ramírez Systems
                     </p>
                 </div>
             </div>
