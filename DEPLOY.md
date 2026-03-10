@@ -46,6 +46,31 @@ Esta aplicación está configurada para desplegarse automáticamente en Render.c
 - Un servicio web Dockerizado corriendo PHP 8.2 y Apache.
 - Conectará ambos automáticamente mediante variables de entorno (DB_HOST, DB_PASSWORD, etc.).
 
+### Opción B: Despliegue Manual (Dashboard)
+
+Si prefieres no usar el Blueprint, sigue estos pasos:
+
+#### 1. Crear Private Service (MySQL)
+1. Ve a **"New"** > **"Private Service"**.
+2. Selecciona **"Existing Image"**.
+3. Usa la imagen: `mysql:8.0`.
+4. En **Environment Variables**, agrega:
+   - `MYSQL_DATABASE`: `student_portal`
+   - `MYSQL_ROOT_PASSWORD`: (usa uno fuerte)
+   - `MYSQL_USER`: `admin`
+   - `MYSQL_PASSWORD`: (usa uno fuerte)
+
+#### 2. Crear Web Service (PHP App)
+1. Ve a **"New"** > **"Web Service"**.
+2. Conecta tu repo de GitHub.
+3. En **Runtime**, selecciona `Docker`.
+4. En **Environment Variables**, agrega:
+   - `DB_HOST`: (Copia el "Internal Hostname" de tu servicio MySQL)
+   - `DB_USER`: `admin`
+   - `DB_PASSWORD`: (la misma que pusiste en el servicio MySQL)
+   - `DB_NAME`: `student_portal`
+   - `DB_PORT`: `3306`
+
 > [!NOTE]
 > La primera vez que se despliegue, deberás importar el esquema de la base de datos (`sql/schema.sql`) a la nueva instancia de MySQL de Render si deseas que tenga datos iniciales.
 

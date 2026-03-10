@@ -13,10 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $code = $_POST['code'] ?? '';
 
     if (!empty($code)) {
-        $stmt = $pdo->prepare('SELECT s.*, g.name as grade_name, c.name as course_name 
+        $stmt = $pdo->prepare('SELECT s.*, g.name as grade_name 
                                FROM students s 
                                JOIN grades g ON s.grade_id = g.id 
-                               JOIN courses c ON s.course_id = c.id 
                                WHERE s.code = ?');
         $stmt->execute([$code]);
         $student = $stmt->fetch();
@@ -25,9 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['student_id'] = $student['id'];
             $_SESSION['student_name'] = $student['name'];
             $_SESSION['grade_id'] = $student['grade_id'];
-            $_SESSION['course_id'] = $student['course_id'];
             $_SESSION['grade_name'] = $student['grade_name'];
-            $_SESSION['course_name'] = $student['course_name'];
 
             header('Location: dashboard.php');
             exit;

@@ -32,9 +32,16 @@ CREATE TABLE IF NOT EXISTS students (
     name VARCHAR(255) NOT NULL,
     code VARCHAR(50) NOT NULL UNIQUE,
     grade_id INT NOT NULL,
+    FOREIGN KEY (grade_id) REFERENCES grades(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_courses (
+    student_id INT NOT NULL,
     course_id INT NOT NULL,
-    FOREIGN KEY (grade_id) REFERENCES grades(id),
-    FOREIGN KEY (course_id) REFERENCES courses(id)
+    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (student_id, course_id),
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS assignments (

@@ -11,9 +11,20 @@ $students = [
 try {
     $pdo->beginTransaction();
 
-    foreach ($students as $student) {
-        $stmt = $pdo->prepare("INSERT INTO students (name, code, grade_id, course_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)");
-        $stmt->execute($student);
+    foreach ($students as $studentData) {
+        $stmt = $pdo->prepare("INSERT INTO students (name, code, grade_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)");
+        $stmt->execute([$studentData[0], $studentData[1], $studentData[2]]);
+
+        $studentId = $pdo->lastInsertId();
+        if (!$studentId) {
+            $stmt = $pdo->prepare("SELECT id FROM students WHERE code = ?");
+            $stmt->execute([$studentData[1]]);
+            $studentId = $stmt->fetchColumn();
+        }
+
+        $courseId = $studentData[3];
+        $stmt = $pdo->prepare("INSERT IGNORE INTO student_courses (student_id, course_id) VALUES (?, ?)");
+        $stmt->execute([$studentId, $courseId]);
     }
 
     // Add a sample assignment
