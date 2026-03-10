@@ -57,7 +57,7 @@ $submissions->execute($sub_params);
 $submissions = $submissions->fetchAll();
 
 // Fetch Exam Responses
-$exam_query = 'SELECT r.exam_id, r.student_id, st.name as student_name, e.title as exam_title, MAX(r.submitted_at) as finished_at, COUNT(r.id) as answers_count
+$exam_query = 'SELECT r.id, r.exam_id, r.student_id, st.name as student_name, e.title as exam_title, r.submitted_at as finished_at, JSON_LENGTH(r.responses) as answers_count
                FROM exam_responses r 
                JOIN students st ON r.student_id = st.id 
                JOIN exams e ON r.exam_id = e.id
@@ -73,7 +73,7 @@ if ($filter_course) {
     $exam_query .= ' AND e.course_id = ?';
     $exam_params[] = $filter_course;
 }
-$exam_query .= ' GROUP BY r.exam_id, r.student_id ORDER BY finished_at DESC';
+$exam_query .= ' ORDER BY r.submitted_at DESC';
 $exam_responses = $pdo->prepare($exam_query);
 $exam_responses->execute($exam_params);
 $exam_responses = $exam_responses->fetchAll();

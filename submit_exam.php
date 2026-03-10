@@ -26,6 +26,8 @@ $questions = $stmt->fetchAll();
 try {
     $pdo->beginTransaction();
 
+    $responses_data = [];
+
     foreach ($questions as $q) {
         $q_id = $q['id'];
         $type = $q['question_type'];
@@ -60,10 +62,11 @@ try {
             $response = $_POST['q_' . $q_id] ?? '';
         }
 
-        $ins = $pdo->prepare('INSERT INTO exam_responses (exam_id, student_id, question_id, response) VALUES (?, ?, ?, ?)');
-        $ins->execute([$exam_id, $student_id, $q_id, $response]);
+        $responses_data[$q_id] = $response;
     }
 
+    $ins = $pdo->prepare('INSERT INTO exam_responses (exam_id, student_id, responses) VALUES (?, ?, ?)');
+    $ins->execute([$exam_id, $student_id, json_encode($responses_data)]);
     $pdo->commit();
     header('Location: exams.php?msg=success');
 } catch (Exception $e) {
