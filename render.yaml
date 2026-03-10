@@ -11,30 +11,37 @@ services:
       - key: DB_HOST
         fromService:
           name: portal-db
-          type: mysql
+          type: pserv
           property: host
       - key: DB_USER
-        fromService:
-          name: portal-db
-          type: mysql
-          property: user
+        value: admin
       - key: DB_PASSWORD
         fromService:
           name: portal-db
-          type: mysql
-          property: password
+          type: pserv
+          property: MYSQL_PASSWORD
       - key: DB_NAME
-        fromService:
-          name: portal-db
-          type: mysql
-          property: database
+        value: student_portal
       - key: DB_PORT
         value: "3306"
 
-  # The MySQL Database (Note: Render MySQL is in Early Access)
-  - type: mysql
+  # MySQL Database running as a Private Service
+  - type: pserv
     name: portal-db
+    runtime: docker
+    image: mysql:8.0
     plan: free
-    region: oregon
-    database: student_portal
-    user: admin
+    region: oregon # Must be the same as the web service
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+      - key: MYSQL_DATABASE
+        value: student_portal
+      - key: MYSQL_USER
+        value: admin
+      - key: MYSQL_PASSWORD
+        generateValue: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1

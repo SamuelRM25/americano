@@ -39,12 +39,12 @@ Esta aplicación está configurada para desplegarse automáticamente en Render.c
     - Ve a tu dashboard en [Render.com](https://dashboard.render.com).
     - Haz clic en **"New"** > **"Blueprint"**.
 3.  **Selecciona tu Repositorio**: Conecta tu cuenta de GitHub y selecciona este proyecto.
-4.  **Confirmar Despliegue**: Render detectará automáticamente el archivo `render.yaml`. Revisa los recursos (Servicio Web y MySQL) y haz clic en **"Apply"**.
+4.  **Confirmar Despliegue**: Render detectará automáticamente el archivo `render.yaml`. Revisa los recursos (Servicio Web y MySQL como Private Service) y haz clic en **"Apply"**.
 
 **¡Listo!** Render creará automáticamente:
-- Una base de datos MySQL gestionada.
+- Una instancia de MySQL 8.0 corriendo como un **Private Service** con disco persistente.
 - Un servicio web Dockerizado corriendo PHP 8.2 y Apache.
-- Conectará ambos automáticamente mediante variables de entorno.
+- Conectará ambos automáticamente mediante variables de entorno (DB_HOST, DB_PASSWORD, etc.).
 
 > [!NOTE]
 > La primera vez que se despliegue, deberás importar el esquema de la base de datos (`sql/schema.sql`) a la nueva instancia de MySQL de Render si deseas que tenga datos iniciales.
