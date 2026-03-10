@@ -1,0 +1,40 @@
+services:
+  # The PHP Website service
+  - type: web
+    name: student-portal
+    env: docker
+    plan: free # Can be changed to 'starter' or higher for better performance
+    region: oregon # Closest to Clever Cloud or user preference
+    dockerFilePath: ./Dockerfile
+    healthCheckPath: /index.php
+    envVars:
+      - key: DB_HOST
+        fromService:
+          name: portal-db
+          type: mysql
+          property: host
+      - key: DB_USER
+        fromService:
+          name: portal-db
+          type: mysql
+          property: user
+      - key: DB_PASSWORD
+        fromService:
+          name: portal-db
+          type: mysql
+          property: password
+      - key: DB_NAME
+        fromService:
+          name: portal-db
+          type: mysql
+          property: database
+      - key: DB_PORT
+        value: "3306"
+
+  # The MySQL Database (Note: Render MySQL is in Early Access)
+  - type: mysql
+    name: portal-db
+    plan: free
+    region: oregon
+    database: student_portal
+    user: admin
