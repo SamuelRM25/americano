@@ -2,10 +2,10 @@ services:
   # The PHP Website service
   - type: web
     name: student-portal
-    env: docker
+    runtime: docker
     plan: free # Can be changed to 'starter' or higher for better performance
     region: oregon # Closest to Clever Cloud or user preference
-    dockerFilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /index.php
     envVars:
       - key: DB_HOST
@@ -28,8 +28,9 @@ services:
   # MySQL Database running as a Private Service
   - type: pserv
     name: portal-db
-    runtime: docker
-    image: mysql:8.0
+    runtime: image
+    image:
+      url: mysql:8.0
     plan: free
     region: oregon # Must be the same as the web service
     envVars:
