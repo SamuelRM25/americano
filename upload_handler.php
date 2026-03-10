@@ -15,8 +15,6 @@ if (isset($_FILES['submission']) && $_FILES['submission']['error'] === UPLOAD_ER
     $file_name = $_FILES['submission']['name'];
     $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-    $allowed_exts = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
-
     if (in_array($file_ext, $allowed_exts)) {
         $new_filename = uniqid('sub_') . '_' . $student_id . '.' . $file_ext;
         $upload_dir = 'uploads/assignments/';
@@ -31,18 +29,20 @@ if (isset($_FILES['submission']) && $_FILES['submission']['error'] === UPLOAD_ER
             $stmt = $pdo->prepare('INSERT INTO submissions (assignment_id, student_id, file_path, file_type) VALUES (?, ?, ?, ?)');
             $stmt->execute([$assignment_id, $student_id, $dest_path, $file_ext]);
 
-            $_SESSION['upload_success'] = 'Tarea subida correctamente.';
+            header('Location: assignments.php?msg=success');
+            exit;
         } else {
-            $_SESSION['upload_error'] = 'Error al mover el archivo.';
+            header('Location: assignments.php?msg=error&error=Error+al+guardar+archivo');
+            exit;
         }
     } else {
-        $_SESSION['upload_error'] = 'Tipo de archivo no permitido.';
+        header('Location: assignments.php?msg=error&error=Tipo+de+archivo+no+permitido');
+        exit;
     }
 } else {
-    $_SESSION['upload_error'] = 'Error en la subida del archivo.';
+    header('Location: assignments.php?msg=error&error=Error+en+el+archivo+subido');
+    exit;
 }
-
-header('Location: assignments.php');
 exit;
 
 function move_uploaded_at_file($tmp, $dest)
