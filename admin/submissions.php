@@ -291,10 +291,10 @@ $exam_responses = $exam_responses->fetchAll();
                                                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest"><?= date('d M, Y H:i', strtotime($r['finished_at'])) ?></span>
                                             </td>
                                             <td class="px-10 py-8 text-right">
-                                                <button
-                                                    class="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all">
+                                                <a href="view_exam_submission.php?exam_id=<?= $r['exam_id'] ?>&student_id=<?= $r['student_id'] ?>"
+                                                    class="inline-block px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all">
                                                     Revisar
-                                                </button>
+                                                </a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once 'includes/sidebar.php';
 
 if (!isset($_SESSION['admin_id'])) {
     header('Location: index.php');
@@ -143,11 +144,13 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
-    <div class="flex">
-        <!-- Sidebar placeholder or just main content -->
-        <main class="flex-1 p-8 lg:p-12 max-w-7xl mx-auto">
-            <nav class="mb-12">
+<body class="bg-slate-50 min-h-screen pb-24 lg:pb-0">
+
+    <?php renderSidebar(''); ?>
+
+    <div class="lg:ml-[5.5rem] p-4 lg:p-12 min-h-screen">
+        <main class="max-w-7xl mx-auto">
+            <nav class="mb-8 lg:mb-12">
                 <a href="exams.php"
                     class="inline-flex items-center text-slate-400 hover:text-primary-600 font-bold uppercase tracking-widest text-xs transition-colors">
                     <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Volver a Exámenes
@@ -181,9 +184,9 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <!-- Exam Settings -->
-                <div class="lg:col-span-1">
+                <div class="lg:col-span-1 border-b lg:border-none pb-8 lg:pb-0 mb-8 lg:mb-0">
                     <div
-                        class="bg-white rounded-[3.5rem] p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
+                        class="bg-white rounded-3xl lg:rounded-[3.5rem] p-6 lg:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
                         <h3 class="text-xl font-black text-slate-900 mb-8 flex items-center">
                             <i data-lucide="settings" class="w-5 h-5 mr-3 text-primary-500"></i> Configuración
                         </h3>
@@ -194,19 +197,19 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Título
                                     del Examen</label>
                                 <input type="text" name="title" value="<?= $exam['title'] ?>" required
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-bold transition-all text-sm tracking-tight text-slate-900">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-bold transition-all text-sm tracking-tight text-slate-900">
                             </div>
                             <div class="space-y-2">
                                 <label
                                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Instrucciones</label>
                                 <textarea name="description"
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-bold h-32 resize-none transition-all text-sm text-slate-600"><?= $exam['description'] ?></textarea>
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-bold h-32 resize-none transition-all text-sm text-slate-600"><?= $exam['description'] ?></textarea>
                             </div>
                             <div class="space-y-2">
                                 <label
                                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Grado</label>
                                 <select name="grade_id" required
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase tracking-widest appearance-none">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase tracking-widest appearance-none">
                                     <?php foreach ($grades as $g): ?>
                                         <option value="<?= $g['id'] ?>" <?= $exam['grade_id'] == $g['id'] ? 'selected' : '' ?>>
                                             <?= $g['name'] ?>
@@ -218,7 +221,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                 <label
                                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Curso</label>
                                 <select name="course_id" required
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase tracking-widest appearance-none">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase tracking-widest appearance-none">
                                     <?php foreach ($courses as $c): ?>
                                         <option value="<?= $c['id'] ?>" <?= $exam['course_id'] == $c['id'] ? 'selected' : '' ?>
                                             >
@@ -233,7 +236,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                     Hora Límite</label>
                                 <input type="datetime-local" name="due_date"
                                     value="<?= date('Y-m-d\TH:i', strtotime($exam['due_date'])) ?>" required
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
@@ -241,7 +244,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                 </label>
                                 <input type="datetime-local" name="start_time"
                                     value="<?= $exam['start_time'] ? date('Y-m-d\TH:i', strtotime($exam['start_time'])) : '' ?>"
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
                                 <p class="text-[10px] text-slate-400 ml-4">Opcional. Si se define, el alumno no puede entrar antes de esta hora.</p>
                             </div>
                             <div class="space-y-2">
@@ -251,7 +254,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                 <input type="number" name="duration_minutes" min="1" max="360"
                                     value="<?= $exam['duration_minutes'] ?? '' ?>"
                                     placeholder="Ejemplo: 60"
-                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs text-center">
+                                    class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs text-center">
                                 <p class="text-[10px] text-slate-400 ml-4">Opcional. Si se define, el examen se envía automáticamente al terminar el tiempo.</p>
                             </div>
                             <button type="submit"
@@ -262,7 +265,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     </div>
                               <!-- Question Management -->
                 <div class="lg:col-span-2 space-y-8">
-                    <div class="bg-white rounded-[3.5rem] p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
+                    <div class="bg-white rounded-3xl lg:rounded-[3.5rem] p-6 lg:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
                         <div class="flex items-center justify-between mb-10">
                             <h3 class="text-xl font-black text-slate-900 flex items-center">
                                 <i data-lucide="list-checks" class="w-6 h-6 mr-3 text-accent-500"></i>
@@ -393,7 +396,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Pregunta</label>
                     <textarea id="question_text_input" name="question_text" required rows="3"
                         placeholder="Escribe o pega la pregunta aquí..."
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold transition-all text-base tracking-tight resize-none"></textarea>
+                        class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-accent-500 font-bold transition-all text-base tracking-tight resize-none"></textarea>
                 </div>
 
                 <!-- Series field -->
@@ -401,7 +404,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Serie (opcional)</label>
                     <input type="text" name="series" id="series_input" list="existing-series"
                         placeholder="Ej: Serie A, Sección I, Comprensión Lectora..."
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold text-sm transition-all">
+                        class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-accent-500 font-bold text-sm transition-all">
                     <datalist id="existing-series">
                         <?php
                         $existingSeries = array_unique(array_filter(array_column($questions, 'series')));
@@ -417,7 +420,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Tipo de Reactivo</label>
                         <select id="question_type_select" name="question_type" required onchange="handleTypeChange(this)"
-                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
+                            class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
                             <option value="text">Respuesta Directa (Corta)</option>
                             <option value="paragraph">Desarrollo (Párrafo)</option>
                             <option value="multiple_choice">Opción Múltiple</option>
@@ -431,7 +434,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Puntuación</label>
                         <input type="number" name="points" value="1" min="1" step="0.5"
-                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs text-center">
+                            class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-2xl md:rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs text-center">
                     </div>
                 </div>
 

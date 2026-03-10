@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once 'includes/sidebar.php';
 
 if (!isset($_SESSION['admin_id'])) {
     header('Location: index.php');
@@ -95,9 +96,13 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
-    <main class="p-8 lg:p-12 max-w-4xl mx-auto">
-        <nav class="mb-12">
+<body class="bg-slate-50 min-h-screen pb-24 lg:pb-0">
+
+    <?php renderSidebar(''); ?>
+
+    <div class="lg:ml-[5.5rem] p-6 lg:p-12 min-h-screen">
+        <main class="max-w-4xl mx-auto">
+            <nav class="mb-8 lg:mb-12">
             <a href="assignments.php"
                 class="inline-flex items-center text-slate-400 hover:text-accent-600 font-bold uppercase tracking-widest text-xs transition-colors">
                 <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Volver a Tareas
@@ -129,22 +134,22 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
         <?php endif; ?>
 
         <div
-            class="bg-white rounded-[3.5rem] p-12 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
-            <form action="" method="POST" class="space-y-8">
+            class="bg-white rounded-3xl md:rounded-[3.5rem] p-6 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
+            <form action="" method="POST" class="space-y-6 md:space-y-8">
                 <input type="hidden" name="update_assignment" value="1">
 
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Título de la
                         Tarea</label>
                     <input type="text" name="title" value="<?= $assignment['title'] ?>" required
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-bold transition-all text-xl tracking-tight text-slate-900">
+                        class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-3xl md:rounded-[2.5rem] outline-none focus:border-accent-500 font-bold transition-all text-lg md:text-xl tracking-tight text-slate-900">
                 </div>
 
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Descripción /
                         Instrucciones</label>
                     <textarea name="description"
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-bold h-48 resize-none transition-all text-lg text-slate-600"><?= $assignment['description'] ?></textarea>
+                        class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-3xl md:rounded-[2.5rem] outline-none focus:border-accent-500 font-bold h-48 resize-none transition-all text-base md:text-lg text-slate-600"><?= $assignment['description'] ?></textarea>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -152,7 +157,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                         <label
                             class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Grado</label>
                         <select name="grade_id" required
-                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest appearance-none">
+                            class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] md:rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest appearance-none">
                             <?php foreach ($grades as $g): ?>
                                 <option value="<?= $g['id'] ?>" <?= $assignment['grade_id'] == $g['id'] ? 'selected' : '' ?>>
                                     <?= $g['name'] ?>
@@ -164,7 +169,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                         <label
                             class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Curso</label>
                         <select name="course_id" required
-                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest appearance-none">
+                            class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] md:rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest appearance-none">
                             <?php foreach ($courses as $c): ?>
                                 <option value="<?= $c['id'] ?>" <?= $assignment['course_id'] == $c['id'] ? 'selected' : '' ?>>
                                     <?= $c['name'] ?>
@@ -179,12 +184,12 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                         Límite de Entrega</label>
                     <input type="datetime-local" name="due_date"
                         value="<?= date('Y-m-d\TH:i', strtotime($assignment['due_date'])) ?>" required
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
+                        class="w-full px-6 py-4 md:px-8 md:py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] md:rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
                 </div>
 
                 <div class="pt-6">
                     <button type="submit"
-                        class="w-full bg-slate-950 text-white font-black py-7 rounded-[2.5rem] hover:bg-accent-600 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm group">
+                        class="w-full bg-slate-950 text-white font-black py-5 md:py-7 rounded-[2rem] md:rounded-[2.5rem] hover:bg-accent-600 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm group">
                         <i data-lucide="save"
                             class="w-5 h-5 inline-block mr-2 group-hover:scale-110 transition-transform"></i>
                         Actualizar Tarea
@@ -193,6 +198,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
             </form>
         </div>
     </main>
+    </div>
 
     <script>
         lucide.createIcons();
