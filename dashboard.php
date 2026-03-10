@@ -231,17 +231,17 @@ $exams = $stmt->fetchAll();
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-4">
                         <button id="register-biometry"
-                            class="bg-white/5 hover:bg-white/10 text-white/70 hover:text-white px-6 py-3 rounded-2xl transition-all flex items-center space-x-2 text-xs font-bold uppercase tracking-widest border border-white/5">
-                            <i data-lucide="fingerprint" class="w-4 h-4"></i>
+                            class="bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 px-5 py-3 rounded-2xl transition-all flex items-center space-x-2 text-xs font-bold uppercase tracking-widest border border-slate-200 shadow-sm">
+                            <i data-lucide="fingerprint" class="w-4 h-4 text-accent-500"></i>
                             <span>Activar Face ID</span>
                         </button>
                         <div class="text-right hidden sm:block leading-tight">
-                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bienvenido
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Bienvenido
                                 de nuevo</p>
-                            <p class="text-xl font-black text-white tracking-tighter italic">Alu.
+                            <p class="text-xl font-black text-slate-800 tracking-tighter italic">Alu.
                                 <?= explode(' ', $student_name)[0] ?>
                             </p>
                         </div>

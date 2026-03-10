@@ -33,11 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_exam'])) {
     $due_date = $_POST['due_date'] ?? '';
     $grade_id = $_POST['grade_id'] ?? '';
     $course_id = $_POST['course_id'] ?? '';
+    $start_time = !empty($_POST['start_time']) ? $_POST['start_time'] : null;
+    $duration = !empty($_POST['duration_minutes']) ? (int)$_POST['duration_minutes'] : null;
 
     if (!empty($title) && !empty($due_date)) {
         try {
-            $stmt = $pdo->prepare('UPDATE exams SET title = ?, description = ?, due_date = ?, grade_id = ?, course_id = ? WHERE id = ?');
-            $stmt->execute([$title, $desc, $due_date, $grade_id, $course_id, $exam_id]);
+            $stmt = $pdo->prepare('UPDATE exams SET title = ?, description = ?, due_date = ?, grade_id = ?, course_id = ?, start_time = ?, duration_minutes = ? WHERE id = ?');
+            $stmt->execute([$title, $desc, $due_date, $grade_id, $course_id, $start_time, $duration, $exam_id]);
             $success = "Examen actualizado correctamente.";
             // Refresh exam data
             $stmt = $pdo->prepare('SELECT e.*, g.name as grade_name, c.name as course_name FROM exams e JOIN grades g ON e.grade_id = g.id JOIN courses c ON e.course_id = c.id WHERE e.id = ?');
@@ -54,11 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_question'])) {
     $text = $_POST['question_text'];
     $type = $_POST['question_type'];
     $points = $_POST['points'] ?? 1;
-    $options = !empty($_POST['options']) ? json_encode(array_map('trim', explode(',', $_POST['options']))) : null;
+    $series = !empty($_POST['series']) ? trim($_POST['series']) : null;
+    $options = !empty($_POST['options']) ? json_encode(array_map('trim', explode('\n', trim($_POST['options'])))) : null;
 
     try {
-        $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, points) VALUES (?, ?, ?, ?, ?)');
-        $stmt->execute([$exam_id, $text, $type, $options, $points]);
+        $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, points, series) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$exam_id, $text, $type, $options, $points, $series]);
         $success = "Pregunta añadida correctamente.";
     } catch (Exception $e) {
         $error = "Error al añadir pregunta: " . $e->getMessage();
@@ -77,7 +80,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'q_deleted') {
     $success = "Pregunta eliminada.";
 }
 
-$questions = $pdo->prepare('SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY id ASC');
+$questions = $pdo->prepare('SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY COALESCE(series, \'zzzz\'), id ASC');
 $questions->execute([$exam_id]);
 $questions = $questions->fetchAll();
 
@@ -232,22 +235,39 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                     value="<?= date('Y-m-d\TH:i', strtotime($exam['due_date'])) ?>" required
                                     class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
                             </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
+                                    Hora de Inicio (Acceso Habilitado)
+                                </label>
+                                <input type="datetime-local" name="start_time"
+                                    value="<?= $exam['start_time'] ? date('Y-m-d\TH:i', strtotime($exam['start_time'])) : '' ?>"
+                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs uppercase">
+                                <p class="text-[10px] text-slate-400 ml-4">Opcional. Si se define, el alumno no puede entrar antes de esta hora.</p>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
+                                    Duración (minutos)
+                                </label>
+                                <input type="number" name="duration_minutes" min="1" max="360"
+                                    value="<?= $exam['duration_minutes'] ?? '' ?>"
+                                    placeholder="Ejemplo: 60"
+                                    class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-primary-500 font-black text-xs text-center">
+                                <p class="text-[10px] text-slate-400 ml-4">Opcional. Si se define, el examen se envía automáticamente al terminar el tiempo.</p>
+                            </div>
                             <button type="submit"
                                 class="w-full bg-slate-950 text-white font-black py-6 rounded-[2rem] hover:bg-primary-600 shadow-xl transition-all uppercase tracking-[0.2em] text-xs">
                                 Guardar Cambios
                             </button>
                         </form>
                     </div>
-                </div>
-
-                <!-- Question Management -->
+                              <!-- Question Management -->
                 <div class="lg:col-span-2 space-y-8">
-                    <div
-                        class="bg-white rounded-[3.5rem] p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
+                    <div class="bg-white rounded-[3.5rem] p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
                         <div class="flex items-center justify-between mb-10">
                             <h3 class="text-xl font-black text-slate-900 flex items-center">
-                                <i data-lucide="list-checks" class="w-6 h-6 mr-3 text-accent-500"></i> Banco de
-                                Preguntas
+                                <i data-lucide="list-checks" class="w-6 h-6 mr-3 text-accent-500"></i>
+                                Banco de Preguntas
+                                <span class="ml-3 text-sm font-bold text-slate-400">(<?= count($questions) ?> en total)</span>
                             </h3>
                             <button onclick="toggleModal('add-q-modal')"
                                 class="bg-accent-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-accent-500 transition-all shadow-lg active:scale-95 flex items-center">
@@ -255,109 +275,176 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                             </button>
                         </div>
 
-                        <div class="space-y-4">
-                            <?php if (empty($questions)): ?>
-                                <div
-                                    class="p-12 text-center rounded-[2.5rem] bg-slate-50 border-2 border-dashed border-slate-200 opacity-50">
-                                    <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-4 text-slate-300"></i>
-                                    <p class="font-bold text-slate-400 italic">No hay preguntas en este examen todavía.</p>
+                        <?php if (empty($questions)): ?>
+                            <div class="p-12 text-center rounded-[2.5rem] bg-slate-50 border-2 border-dashed border-slate-200 opacity-50">
+                                <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-4 text-slate-300"></i>
+                                <p class="font-bold text-slate-400 italic">No hay preguntas en este examen todavía.</p>
+                                <p class="text-xs text-slate-300 mt-1">Haz clic en "+ Nueva Pregunta" para empezar.</p>
+                            </div>
+                        <?php else: ?>
+                            <?php
+                            // Group questions by series
+                            $grouped = [];
+                            foreach ($questions as $q) {
+                                $key = $q['series'] ?? '— Sin Serie';
+                                $grouped[$key][] = $q;
+                            }
+                            $typeLabels = [
+                                'text'            => ['label' => 'Respuesta Corta',    'color' => 'bg-sky-100 text-sky-700'],
+                                'paragraph'       => ['label' => 'Desarrollo',          'color' => 'bg-indigo-100 text-indigo-700'],
+                                'multiple_choice' => ['label' => 'Opción Múltiple',    'color' => 'bg-violet-100 text-violet-700'],
+                                'checkbox'        => ['label' => 'Casilla',             'color' => 'bg-purple-100 text-purple-700'],
+                                'true_false'      => ['label' => 'V / F',               'color' => 'bg-emerald-100 text-emerald-700'],
+                                'matching'        => ['label' => 'Relación',            'color' => 'bg-amber-100 text-amber-700'],
+                                'file_upload'     => ['label' => 'Archivo',             'color' => 'bg-rose-100 text-rose-700'],
+                            ];
+                            $qNum = 0;
+                            foreach ($grouped as $seriesName => $seriesQuestions):
+                            ?>
+                            <div class="mb-10">
+                                <!-- Series Header -->
+                                <div class="flex items-center gap-4 mb-5">
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100">
+                                        <?= htmlspecialchars($seriesName) ?>
+                                    </span>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
                                 </div>
-                            <?php else: ?>
-                                <?php foreach ($questions as $q): ?>
-                                    <div
-                                        class="flex items-start gap-6 p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-50 hover:border-accent-200 transition-all group">
-                                        <div
-                                            class="w-12 h-12 bg-white text-slate-400 rounded-2xl shadow-sm flex items-center justify-center font-black italic text-lg flex-shrink-0 group-hover:bg-accent-600 group-hover:text-white transition-all">
-                                            <?= $q['points'] ?>
+
+                                <div class="space-y-3">
+                                    <?php foreach ($seriesQuestions as $q):
+                                        $qNum++;
+                                        $tl = $typeLabels[$q['question_type']] ?? ['label' => $q['question_type'], 'color' => 'bg-slate-100 text-slate-500'];
+                                        $opts = $q['options'] ? json_decode($q['options'], true) : [];
+                                    ?>
+                                    <div class="flex items-start gap-5 p-6 bg-slate-50/60 rounded-[2rem] border border-slate-100 hover:border-accent-200 hover:bg-white transition-all group">
+                                        <!-- Number badge -->
+                                        <div class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-slate-500 text-sm flex-shrink-0 group-hover:bg-accent-600 group-hover:text-white transition-all">
+                                            <?= $qNum ?>
                                         </div>
-                                        <div class="flex-1">
-                                            <div class="flex items-start justify-between mb-3">
-                                                <p
-                                                    class="font-bold text-slate-900 group-hover:text-accent-600 transition-colors">
-                                                    <?= $q['question_text'] ?>
-                                                </p>
-                                                <a href="?id=<?= $exam_id ?>&delete_question=<?= $q['id'] ?>"
-                                                    onclick="return confirm('¿Eliminar pregunta?')"
-                                                    class="p-2 text-slate-300 hover:text-rose-500 transition-colors">
-                                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                                                </a>
-                                            </div>
-                                            <div class="flex items-center space-x-4">
-                                                <span class="text-[9px] font-black uppercase text-slate-400 italic">
-                                                    <?= str_replace('_', ' ', $q['question_type']) ?>
+                                        <!-- Content -->
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-bold text-slate-800 text-sm leading-snug mb-2 group-hover:text-accent-600 transition-colors">
+                                                <?= htmlspecialchars(substr($q['question_text'], 0, 120)) . (strlen($q['question_text']) > 120 ? '...' : '') ?>
+                                            </p>
+                                            <div class="flex items-center flex-wrap gap-2">
+                                                <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg <?= $tl['color'] ?>">
+                                                    <?= $tl['label'] ?>
                                                 </span>
-                                                <?php if ($q['options']): ?>
-                                                    <div class="flex items-center gap-1">
-                                                        <?php foreach (json_decode($q['options']) as $opt): ?>
-                                                            <span
-                                                                class="text-[8px] bg-white border border-slate-200 px-2 py-0.5 rounded-lg font-bold text-slate-500">
-                                                                <?= $opt ?>
-                                                            </span>
-                                                        <?php endforeach; ?>
-                                                    </div>
+                                                <span class="text-[9px] font-bold text-slate-400 uppercase">
+                                                    <?= $q['points'] ?> pto<?= $q['points'] != 1 ? 's' : '' ?>
+                                                </span>
+                                                <?php if ($opts): ?>
+                                                    <?php foreach (array_slice($opts, 0, 4) as $opt): ?>
+                                                        <span class="text-[8px] bg-white border border-slate-200 px-2 py-0.5 rounded-md font-bold text-slate-500">
+                                                            <?= htmlspecialchars($opt) ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                    <?php if (count($opts) > 4): ?>
+                                                        <span class="text-[8px] text-slate-400 font-bold">+<?= count($opts) - 4 ?> más</span>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
+                                        <!-- Delete -->
+                                        <a href="?id=<?= $exam_id ?>&delete_question=<?= $q['id'] ?>"
+                                            onclick="return confirm('¿Eliminar esta pregunta?')"
+                                            class="p-2 text-slate-200 hover:text-rose-500 transition-colors flex-shrink-0 mt-1">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </a>
                                     </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Modals -->
+    <!-- Add Question Modal -->
     <div id="add-q-modal"
         class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6 overflow-y-auto">
-        <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl relative animate-slide-up">
-            <header class="flex justify-between items-center mb-10">
-                <h3 class="text-4xl font-black text-slate-950 tracking-tighter italic">Nueva <span
-                        class="text-accent-500">Pregunta</span></h3>
+        <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl relative animate-slide-up my-8">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h3 class="text-3xl font-black text-slate-950 tracking-tighter italic">Nueva <span class="text-accent-500">Pregunta</span></h3>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Pega texto para detectar el tipo automáticamente</p>
+                </div>
                 <button onclick="toggleModal('add-q-modal')"
                     class="p-4 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-950 hover:text-white transition-all">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </header>
-            <form action="" method="POST" class="space-y-6">
+
+            <!-- Auto-detect banner -->
+            <div id="detect-banner" class="hidden mb-6 px-6 py-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-sm font-bold text-emerald-700">
+                <i data-lucide="sparkles" class="w-4 h-4 flex-shrink-0"></i>
+                <span id="detect-text">Tipo detectado automáticamente</span>
+            </div>
+
+            <form action="" method="POST" class="space-y-5">
                 <input type="hidden" name="add_question" value="1">
-                <div class="space-y-6">
-                    <input type="text" name="question_text" required placeholder="¿Cuál es la pregunta?"
-                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-bold transition-all text-lg tracking-tight">
 
-                    <div class="grid grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Tipo de
-                                Reactivo</label>
-                            <select name="question_type" required onchange="handleTypeChange(this)"
-                                class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
-                                <option value="text">Respuesta Directa (Corta)</option>
-                                <option value="paragraph">Desarrollo (Párrafo)</option>
-                                <option value="multiple_choice">Opción Múltiple</option>
-                                <option value="checkbox">Casilla de Verificación</option>
-                                <option value="true_false">Verdadero / Falso</option>
-                                <option value="matching">Relación de Columnas</option>
-                                <option value="file_upload">Subida de Archivo (Evidencia)</option>
-                            </select>
-                        </div>
-                        <div class="space-y-2">
-                            <label
-                                class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Puntuación</label>
-                            <input type="number" name="points" value="1" min="1" step="0.5"
-                                class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-black text-xs text-center">
-                        </div>
+                <!-- Question text with paste detection -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Pregunta</label>
+                    <textarea id="question_text_input" name="question_text" required rows="3"
+                        placeholder="Escribe o pega la pregunta aquí..."
+                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold transition-all text-base tracking-tight resize-none"></textarea>
+                </div>
+
+                <!-- Series field -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Serie (opcional)</label>
+                    <input type="text" name="series" id="series_input" list="existing-series"
+                        placeholder="Ej: Serie A, Sección I, Comprensión Lectora..."
+                        class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold text-sm transition-all">
+                    <datalist id="existing-series">
+                        <?php
+                        $existingSeries = array_unique(array_filter(array_column($questions, 'series')));
+                        foreach ($existingSeries as $s): ?>
+                            <option value="<?= htmlspecialchars($s) ?>">
+                        <?php endforeach; ?>
+                    </datalist>
+                    <p class="text-[10px] text-slate-400 ml-4">Agrupa preguntas bajo una misma sección o serie del examen.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <!-- Type selector -->
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Tipo de Reactivo</label>
+                        <select id="question_type_select" name="question_type" required onchange="handleTypeChange(this)"
+                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs uppercase tracking-widest">
+                            <option value="text">Respuesta Directa (Corta)</option>
+                            <option value="paragraph">Desarrollo (Párrafo)</option>
+                            <option value="multiple_choice">Opción Múltiple</option>
+                            <option value="checkbox">Casilla de Verificación</option>
+                            <option value="true_false">Verdadero / Falso</option>
+                            <option value="matching">Relación de Columnas</option>
+                            <option value="file_upload">Subida de Archivo (Evidencia)</option>
+                        </select>
                     </div>
-
-                    <div id="options-container" class="space-y-2 hidden">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Opciones
-                            (separadas por coma)</label>
-                        <input type="text" name="options" placeholder="Opción A, Opción B, Opción C..."
-                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2.5rem] outline-none focus:border-accent-500 font-bold text-xs ">
+                    <!-- Points -->
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Puntuación</label>
+                        <input type="number" name="points" value="1" min="1" step="0.5"
+                            class="w-full px-8 py-5 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-black text-xs text-center">
                     </div>
                 </div>
+
+                <!-- Options (one per line) -->
+                <div id="options-container" class="space-y-2 hidden">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Opciones <span class="normal-case font-normal">(una por línea)</span></label>
+                    <textarea id="options_input" name="options" rows="4"
+                        placeholder="Opción A&#10;Opción B&#10;Opción C"
+                        class="w-full px-8 py-4 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold text-sm resize-none"></textarea>
+                </div>
+
                 <button type="submit"
-                    class="w-full bg-accent-600 text-white font-black py-6 rounded-[2rem] mt-4 hover:bg-accent-500 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm">
+                    class="w-full bg-accent-600 text-white font-black py-6 rounded-[2rem] mt-2 hover:bg-accent-500 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm">
                     Añadir al Banco
                 </button>
             </form>
@@ -375,20 +462,109 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
 
         function handleTypeChange(select) {
             const container = document.getElementById('options-container');
+            const opt = document.getElementById('options_input');
             const typesWithOptions = ['multiple_choice', 'checkbox', 'true_false', 'matching'];
 
             if (typesWithOptions.includes(select.value)) {
                 container.classList.remove('hidden');
                 if (select.value === 'true_false') {
-                    container.querySelector('input').value = 'Verdadero, Falso';
-                    container.querySelector('input').readOnly = true;
+                    opt.value = 'Verdadero\nFalso';
+                    opt.readOnly = true;
                 } else {
-                    container.querySelector('input').readOnly = false;
-                    container.querySelector('input').value = '';
+                    opt.readOnly = false;
+                    if (opt.value === 'Verdadero\nFalso') opt.value = '';
                 }
             } else {
                 container.classList.add('hidden');
             }
+        }
+
+        // ── Auto-detect question type on paste ──────────────────────
+        function detectQuestionType(text) {
+            const t = text.trim();
+
+            // True/False signals
+            if (/verdadero\s*[\/\-]\s*falso/i.test(t) || /true\s*[\/\-]\s*false/i.test(t)) {
+                return 'true_false';
+            }
+
+            // File upload signals
+            if (/sube?\s+(un\s+)?(archivo|imagen|foto|documento|evidencia)/i.test(t)) {
+                return 'file_upload';
+            }
+
+            // Matching signals: "A - B" or "A:B" pattern list
+            const matchingLines = t.split('\n').filter(l => /^.+\s*[-:]\s*.+$/.test(l.trim()));
+            if (matchingLines.length >= 2 && matchingLines.length === t.split('\n').filter(l => l.trim()).length) {
+                return 'matching';
+            }
+
+            // Multiple choice / checkbox: lines starting with a), b), 1., A-, etc.
+            const optionLines = t.split('\n').filter(l => /^[a-zA-Z0-9][\).\-]\s+.+/.test(l.trim()));
+            if (optionLines.length >= 2) {
+                return 'multiple_choice';
+            }
+
+            // Paragraph: long text (> 120 chars) with no obvious structure
+            if (t.length > 120 && !t.includes('?') && optionLines.length === 0) {
+                return 'paragraph';
+            }
+
+            // Fill-in-the-blank
+            if (/_{2,}/.test(t) || /\[\s*\]/.test(t)) {
+                return 'text';
+            }
+
+            return 'text'; // default
+        }
+
+        function extractOptionsFromPaste(type, text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+            if (type === 'matching') {
+                return lines.filter(l => /[-:]/.test(l)).join('\n');
+            }
+            if (type === 'multiple_choice' || type === 'checkbox') {
+                return lines
+                    .filter(l => /^[a-zA-Z0-9][\).\-]\s+/.test(l))
+                    .map(l => l.replace(/^[a-zA-Z0-9][\).\-]\s+/, '').trim())
+                    .join('\n');
+            }
+            return '';
+        }
+
+        function showDetectBanner(label) {
+            const banner = document.getElementById('detect-banner');
+            const txt = document.getElementById('detect-text');
+            txt.textContent = '✦ Tipo detectado: ' + label;
+            banner.classList.remove('hidden');
+            setTimeout(() => banner.classList.add('hidden'), 4000);
+        }
+
+        const questionInput = document.getElementById('question_text_input');
+        if (questionInput) {
+            questionInput.addEventListener('paste', function(e) {
+                setTimeout(() => {
+                    const text = questionInput.value;
+                    const type = detectQuestionType(text);
+                    const sel = document.getElementById('question_type_select');
+                    sel.value = type;
+                    handleTypeChange(sel);
+
+                    // Pre-populate options if any
+                    const opts = extractOptionsFromPaste(type, text);
+                    if (opts) {
+                        const optInp = document.getElementById('options_input');
+                        if (optInp) optInp.value = opts;
+                    }
+
+                    const labels = {
+                        'text': 'Respuesta Corta', 'paragraph': 'Desarrollo', 'multiple_choice': 'Opción Múltiple',
+                        'checkbox': 'Casilla', 'true_false': 'Verdadero / Falso', 'matching': 'Relación de Columnas',
+                        'file_upload': 'Subida de Archivo'
+                    };
+                    showDetectBanner(labels[type] || type);
+                }, 50);
+            });
         }
     </script>
 </body>

@@ -51,6 +51,40 @@ function render_admin_sidebar($active_page) {
             </a>
         </div>
     </aside>
+
+    <!-- Mobile Bottom Navigation (visible on small screens only) -->
+    <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 z-50 flex items-center justify-around px-2 py-2">
+        <a href="dashboard.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'students' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Alumnos</span>
+        </a>
+        <a href="assignments.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'assignments' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Tareas</span>
+        </a>
+        <a href="exams.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'exams' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Exámenes</span>
+        </a>
+        <a href="chat.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'chat' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Chat</span>
+        </a>
+        <a href="submissions.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'submissions' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="check-square" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Notas</span>
+        </a>
+        <a href="logout.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all text-slate-500 hover:text-rose-400">
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Salir</span>
+        </a>
+    </nav>
     <?php
 }
 ?>

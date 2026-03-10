@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS exams (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     due_date DATETIME NOT NULL,
+    start_time DATETIME DEFAULT NULL,
+    duration_minutes INT DEFAULT NULL,
     grade_id INT NOT NULL,
     course_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -87,6 +89,7 @@ CREATE TABLE IF NOT EXISTS exam_questions (
     options JSON, -- For multiple choice/checkbox/matching
     points INT DEFAULT 1,
     order_num INT DEFAULT 0,
+    series VARCHAR(100) DEFAULT NULL,
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

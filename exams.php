@@ -268,17 +268,41 @@ $exams = $stmt->fetchAll();
                             </div>
 
                             <div class="pt-8 border-t border-slate-50">
+                                <?php
+                                $now = time();
+                                $start = $exam['start_time'] ? strtotime($exam['start_time']) : null;
+                                $due = strtotime($exam['due_date']);
+                                $locked = ($start !== null && $now < $start);
+                                $expired = ($now > $due);
+                                ?>
                                 <?php if ($exam['is_taken']): ?>
-                                    <div
-                                        class="w-full bg-emerald-50 text-emerald-600 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-emerald-100">
+                                    <div class="w-full bg-emerald-50 text-emerald-600 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-emerald-100">
                                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                                         <span>Completado</span>
                                     </div>
+                                <?php elseif ($expired): ?>
+                                    <div class="w-full bg-rose-50 text-rose-500 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-rose-100">
+                                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                                        <span>Tiempo Agotado</span>
+                                    </div>
+                                <?php elseif ($locked): ?>
+                                    <div class="w-full bg-amber-50 text-amber-600 font-black py-5 rounded-2xl flex flex-col items-center justify-center text-xs border border-amber-100">
+                                        <div class="flex items-center space-x-2 mb-2 uppercase tracking-widest">
+                                            <i data-lucide="lock" class="w-4 h-4"></i>
+                                            <span>Bloqueado</span>
+                                        </div>
+                                        <span class="text-amber-500 font-bold countdown-label normal-case" data-start="<?= $exam['start_time'] ?>"></span>
+                                    </div>
                                 <?php else: ?>
                                     <a href="take_exam.php?id=<?= $exam['id'] ?>"
-                                        class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex items-center justify-center space-x-3 text-xs uppercase tracking-widest">
-                                        <span>Empezar Ahora</span>
-                                        <i data-lucide="zap" class="w-4 h-4"></i>
+                                        class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex flex-col items-center justify-center text-xs uppercase tracking-widest">
+                                        <div class="flex items-center space-x-3">
+                                            <span>Empezar Ahora</span>
+                                            <i data-lucide="zap" class="w-4 h-4"></i>
+                                        </div>
+                                        <?php if ($exam['duration_minutes']): ?>
+                                            <span class="text-white/50 normal-case font-medium mt-1 tracking-normal"><?= $exam['duration_minutes'] ?> min de tiempo</span>
+                                        <?php endif; ?>
                                     </a>
                                 <?php endif; ?>
                             </div>
@@ -307,7 +331,22 @@ $exams = $stmt->fetchAll();
             </a>
         </nav>
 
-        <script>lucide.createIcons();</script>
+        <script>
+            lucide.createIcons();
+            function updateCountdowns() {
+                document.querySelectorAll('.countdown-label').forEach(el => {
+                    const start = new Date(el.dataset.start.replace(' ', 'T')).getTime();
+                    const diff = Math.floor((start - Date.now()) / 1000);
+                    if (diff <= 0) { window.location.reload(); return; }
+                    const h = Math.floor(diff / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const s = diff % 60;
+                    el.textContent = `Disponible en ${h > 0 ? h + 'h ' : ''}${m}m ${String(s).padStart(2,'0')}s`;
+                });
+            }
+            updateCountdowns();
+            setInterval(updateCountdowns, 1000);
+        </script>
 </body>
 
 </html>

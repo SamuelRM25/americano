@@ -38,6 +38,29 @@ if (!$exam) {
     exit;
 }
 
+// Enforce time gate
+$now = time();
+if ($exam['start_time'] && $now < strtotime($exam['start_time'])) {
+    header('Location: exams.php');
+    exit;
+}
+if ($now > strtotime($exam['due_date'])) {
+    header('Location: exams.php');
+    exit;
+}
+
+// Calculate deadline for countdown
+$deadline = null;
+if ($exam['duration_minutes']) {
+    // Use session-stored start time to be consistent across reloads
+    if (!isset($_SESSION['exam_start'][$exam_id])) {
+        $_SESSION['exam_start'][$exam_id] = time();
+    }
+    $deadline = $_SESSION['exam_start'][$exam_id] + ($exam['duration_minutes'] * 60);
+    // Also cap at due_date
+    $deadline = min($deadline, strtotime($exam['due_date']));
+}
+
 // Fetch questions
 $stmt = $pdo->prepare('SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY id ASC');
 $stmt->execute([$exam_id]);
@@ -158,21 +181,28 @@ $questions = $stmt->fetchAll();
             </div>
         </div>
 
-        <div class="hidden md:flex items-center space-x-12">
+        <div class="hidden md:flex items-center space-x-10">
             <div class="text-right">
                 <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Preguntas</p>
                 <p class="text-lg font-black text-white"><?= count($questions) ?></p>
             </div>
+            <?php if ($deadline): ?>
             <div class="w-px h-10 bg-white/10"></div>
-            <a href="exams.php" onclick="return confirm('¿Estás seguro de que quieres salir? Se perderá tu progreso.')"
+            <div class="text-right">
+                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Tiempo Restante</p>
+                <p id="countdown" class="text-2xl font-black text-accent-500">--:--</p>
+            </div>
+            <?php endif; ?>
+            <div class="w-px h-10 bg-white/10"></div>
+            <a href="exams.php" onclick="return confirm('\u00bfEst\u00e1s seguro de salir?')"
                 class="text-xs font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest transition-colors">
-                Terminar SESIÓN
+                Terminar
             </a>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto pt-40 pb-20 px-6">
-        <form action="submit_exam.php" method="POST" enctype="multipart/form-data" class="space-y-12">
+        <form id="exam-form" action="submit_exam.php" method="POST" enctype="multipart/form-data" class="space-y-12">
             <input type="hidden" name="exam_id" value="<?= $exam_id ?>">
 
             <?php foreach ($questions as $index => $q): ?>
@@ -270,7 +300,32 @@ $questions = $stmt->fetchAll();
         </form>
     </main>
 
-    <script>lucide.createIcons();</script>
+    <script>
+        lucide.createIcons();
+        <?php if ($deadline): ?>
+        const examDeadline = <?= $deadline ?> * 1000;
+        function updateTimer() {
+            const remaining = Math.floor((examDeadline - Date.now()) / 1000);
+            const el = document.getElementById('countdown');
+            if (remaining <= 0) {
+                if (el) el.textContent = '00:00';
+                document.getElementById('exam-form').submit();
+                return;
+            }
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            const t = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            if (el) {
+                el.textContent = t;
+                if (remaining < 300) {
+                    el.classList.remove('text-accent-500');
+                    el.classList.add('text-rose-400', 'animate-pulse');
+                }
+            }
+        }
+        updateTimer();
+        setInterval(updateTimer, 1000);
+        <?php endif; ?>
+    </script>
 </body>
-
 </html>
