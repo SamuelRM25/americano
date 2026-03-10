@@ -486,9 +486,12 @@ unset($s);
                     alert("¡Biometría activada con éxito! Ahora puedes entrar con Face ID.");
                     localStorage.setItem('admin_has_biometrics', 'true');
                     localStorage.setItem('admin_bio_id', credentialId);
+                } else {
+                    alert("Error: " + (result.error || "No se pudo activar la biometría."));
                 }
             } catch (err) {
                 console.error(err);
+                alert("Error crítico al procesar la solicitud.");
             }
         });
     </script>
