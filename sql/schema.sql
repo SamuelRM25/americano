@@ -136,3 +136,14 @@ CREATE TABLE IF NOT EXISTS student_credentials (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
     UNIQUE(credential_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS admin_credentials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    credential_id VARBINARY(255) NOT NULL,
+    public_key TEXT NOT NULL,
+    sign_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE,
+    UNIQUE(credential_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

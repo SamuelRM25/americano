@@ -220,10 +220,16 @@ unset($s);
                             class="italic text-transparent bg-clip-text bg-gradient-to-r from-slate-950 to-primary-600">Estudiantes</span>
                     </h1>
                 </div>
-                <button onclick="toggleModal('add-student-modal')"
-                    class="bg-primary-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 transition-all shadow-xl shadow-primary-500/20 active:scale-95 flex items-center">
-                    <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i> Registrar Alumno
-                </button>
+                <div class="flex items-center gap-4">
+                    <button id="register-biometry"
+                        class="bg-white hover:bg-slate-50 text-slate-900 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm active:scale-95 flex items-center border border-slate-200">
+                        <i data-lucide="fingerprint" class="w-5 h-5 mr-2"></i> Activar Face ID
+                    </button>
+                    <button onclick="toggleModal('add-student-modal')"
+                        class="bg-primary-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 transition-all shadow-xl shadow-primary-500/20 active:scale-95 flex items-center">
+                        <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i> Registrar Alumno
+                    </button>
+                </div>
             </header>
 
             <?php if ($success): ?>
@@ -458,6 +464,33 @@ unset($s);
             
             toggleModal('edit-student-modal');
         }
+        document.getElementById('register-biometry')?.addEventListener('click', async () => {
+            if (!window.PublicKeyCredential) {
+                alert("Tu dispositivo no admite biometría.");
+                return;
+            }
+
+            try {
+                // Simulation of WebAuthn registration
+                const credentialId = btoa('admin_' + Math.random().toString());
+                const publicKey = "ADMIN_PREMIUM_ENCRYPTED_KEY_SIMULATION";
+
+                const response = await fetch('../webauthn_handler.php?action=register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential_id: credentialId, public_key: publicKey })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert("¡Biometría activada con éxito! Ahora puedes entrar con Face ID.");
+                    localStorage.setItem('admin_has_biometrics', 'true');
+                    localStorage.setItem('admin_bio_id', credentialId);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
     </script>
 </body>
 

@@ -14,6 +14,7 @@ if (isset($_FILES['submission']) && $_FILES['submission']['error'] === UPLOAD_ER
     $file_tmp = $_FILES['submission']['tmp_name'];
     $file_name = $_FILES['submission']['name'];
     $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+    $allowed_exts = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'zip', 'rar', 'txt'];
 
     if (in_array($file_ext, $allowed_exts)) {
         $new_filename = uniqid('sub_') . '_' . $student_id . '.' . $file_ext;

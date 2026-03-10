@@ -133,6 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     class="w-full bg-white text-slate-950 font-black py-5 rounded-2xl hover:bg-slate-200 transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest text-sm">
                     Autenticar Acceso
                 </button>
+
+                <button type="button" id="biometric-login"
+                    class="w-full bg-slate-800/50 text-white font-black py-5 rounded-2xl hover:bg-slate-700 transition-all border border-white/10 active:scale-[0.98] uppercase tracking-widest text-xs flex items-center justify-center">
+                    <i data-lucide="fingerprint" class="w-5 h-5 mr-3"></i> Acceder con Face ID
+                </button>
             </form>
         </div>
 
@@ -143,6 +148,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
         lucide.createIcons();
+
+        document.getElementById('biometric-login').addEventListener('click', async () => {
+            if (!window.PublicKeyCredential) {
+                alert("Tu dispositivo no admite biometría.");
+                return;
+            }
+
+            const savedBioId = localStorage.getItem('admin_bio_id');
+            if (!savedBioId) {
+                alert("Primero debes entrar con tu usuario y activar Face ID desde tu panel.");
+                return;
+            }
+
+            try {
+                const response = await fetch('../webauthn_handler.php?action=login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential_id: savedBioId, type: 'admin' })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = 'dashboard.php';
+                } else {
+                    alert(result.error || "Error en la autenticación biométrica.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error al conectar con el servidor.");
+            }
+        });
     </script>
 </body>
 
