@@ -87,9 +87,10 @@ CREATE TABLE IF NOT EXISTS exam_questions (
     question_text TEXT NOT NULL,
     question_type ENUM('text', 'multiple_choice', 'checkbox', 'paragraph', 'matching', 'true_false', 'file_upload') DEFAULT 'text',
     options JSON, -- For multiple choice/checkbox/matching
+    correct_answers JSON, -- New: Correct options/mappings for auto-grading
     points INT DEFAULT 1,
     order_num INT DEFAULT 0,
-    series VARCHAR(100) DEFAULT NULL,
+    series VARCHAR(1000) DEFAULT NULL,
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS exam_responses (
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
     responses JSON, -- Store answers as JSON for flexibility
+    score DECIMAL(5,2) DEFAULT NULL, -- Auto-calculated grade
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE

@@ -96,12 +96,12 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen pb-24 lg:pb-0">
+<body class="bg-[#f8fafc] h-screen flex overflow-hidden selection:bg-accent-500 selection:text-white">
 
-    <?php renderSidebar(''); ?>
+    <?php render_admin_sidebar('assignments'); ?>
 
-    <div class="lg:ml-[5.5rem] p-6 lg:p-12 min-h-screen">
-        <main class="max-w-4xl mx-auto">
+    <main class="flex-1 overflow-y-auto bg-slate-50 animate-fade-in custom-scrollbar">
+        <div class="p-6 lg:p-12 max-w-4xl mx-auto">
             <nav class="mb-8 lg:mb-12">
             <a href="assignments.php"
                 class="inline-flex items-center text-slate-400 hover:text-accent-600 font-bold uppercase tracking-widest text-xs transition-colors">
@@ -203,6 +203,8 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
     <script>
         lucide.createIcons();
     </script>
+    </div>
+    </main>
 </body>
 
 </html>

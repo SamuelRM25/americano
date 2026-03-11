@@ -58,11 +58,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_question'])) {
     $type = $_POST['question_type'];
     $points = $_POST['points'] ?? 1;
     $series = !empty($_POST['series']) ? trim($_POST['series']) : null;
-    $options = !empty($_POST['options']) ? json_encode(array_map('trim', explode('\n', trim($_POST['options'])))) : null;
+    
+    // Process options and correct answers dynamically
+    $options = null;
+    $correct_answers = null;
+
+    if ($type === 'matching' && !empty($_POST['matching_concept']) && !empty($_POST['matching_definition'])) {
+        $concepts = $_POST['matching_concept'];
+        $definitions = $_POST['matching_definition'];
+        $pairs = [];
+        for ($i = 0; $i < count($concepts); $i++) {
+            if (trim($concepts[$i]) !== '' && trim($definitions[$i]) !== '') {
+                $pairs[trim($concepts[$i])] = trim($definitions[$i]);
+            }
+        }
+        $options = json_encode(array_keys($pairs)); // Concepts
+        $correct_answers = json_encode($pairs);     // Correct mappings
+    } elseif ($type === 'multiple_choice' || $type === 'checkbox') {
+        if (!empty($_POST['dynamic_options'])) {
+            $opts = array_filter(array_map('trim', $_POST['dynamic_options']));
+            $options = json_encode(array_values($opts));
+            
+            // Collect correct indices or values (assuming input names matching `correct_opt[]`)
+            if (!empty($_POST['correct_opt'])) {
+                // If it's a single value (radio), it might not be an array, but we force array for uniform JSON
+                $corrects = is_array($_POST['correct_opt']) ? $_POST['correct_opt'] : [$_POST['correct_opt']];
+                $correct_answers = json_encode(array_map('trim', $corrects));
+            }
+        }
+    } elseif ($type === 'true_false') {
+        $options = json_encode(['Verdadero', 'Falso']);
+        if (!empty($_POST['correct_tf'])) {
+            $correct_answers = json_encode([trim($_POST['correct_tf'])]);
+        }
+    } else {
+        // Fallback or text/file_upload type: generic options if any (old method parsing)
+        $options = !empty($_POST['options']) ? json_encode(array_map('trim', explode("\n", trim($_POST['options'])))) : null;
+        if (!empty($_POST['correct_text'])) {
+            $correct_answers = json_encode([trim($_POST['correct_text'])]);
+        }
+    }
+
+    if (empty($series)) {
+        // Auto-assign the most recently used series for this exam
+        $lastSeriesStmt = $pdo->prepare('SELECT series FROM exam_questions WHERE exam_id = ? AND series IS NOT NULL ORDER BY id DESC LIMIT 1');
+        $lastSeriesStmt->execute([$exam_id]);
+        $lastSeries = $lastSeriesStmt->fetchColumn();
+        if ($lastSeries !== false) {
+            $series = $lastSeries;
+        }
+    }
 
     try {
-        $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, points, series) VALUES (?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$exam_id, $text, $type, $options, $points, $series]);
+        $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, correct_answers, points, series) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$exam_id, $text, $type, $options, $correct_answers, $points, $series]);
         $success = "Pregunta añadida correctamente.";
     } catch (Exception $e) {
         $error = "Error al añadir pregunta: " . $e->getMessage();
@@ -144,12 +193,12 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen pb-24 lg:pb-0">
+<body class="bg-[#f8fafc] h-screen flex overflow-hidden selection:bg-primary-500 selection:text-white">
 
-    <?php renderSidebar(''); ?>
+    <?php render_admin_sidebar('exams'); ?>
 
-    <div class="lg:ml-[5.5rem] p-4 lg:p-12 min-h-screen">
-        <main class="max-w-7xl mx-auto">
+    <main class="flex-1 overflow-y-auto bg-slate-50 animate-fade-in custom-scrollbar">
+        <div class="p-6 lg:p-12 max-w-7xl mx-auto">
             <nav class="mb-8 lg:mb-12">
                 <a href="exams.php"
                     class="inline-flex items-center text-slate-400 hover:text-primary-600 font-bold uppercase tracking-widest text-xs transition-colors">
@@ -184,7 +233,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <!-- Exam Settings -->
-                <div class="lg:col-span-1 border-b lg:border-none pb-8 lg:pb-0 mb-8 lg:mb-0">
+                <div class="lg:col-span-1 border-b lg:border-none pb-8 lg:pb-0 mb-8 lg:mb-0 lg:sticky lg:top-12 self-start z-10">
                     <div
                         class="bg-white rounded-3xl lg:rounded-[3.5rem] p-6 lg:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
                         <h3 class="text-xl font-black text-slate-900 mb-8 flex items-center">
@@ -263,6 +312,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                             </button>
                         </form>
                     </div>
+                </div>
                               <!-- Question Management -->
                 <div class="lg:col-span-2 space-y-8">
                     <div class="bg-white rounded-3xl lg:rounded-[3.5rem] p-6 lg:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 animate-slide-up">
@@ -438,13 +488,8 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     </div>
                 </div>
 
-                <!-- Options (one per line) -->
-                <div id="options-container" class="space-y-2 hidden">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Opciones <span class="normal-case font-normal">(una por línea)</span></label>
-                    <textarea id="options_input" name="options" rows="4"
-                        placeholder="Opción A&#10;Opción B&#10;Opción C"
-                        class="w-full px-8 py-4 bg-slate-50 border-2 border-transparent border-slate-100 rounded-[2rem] outline-none focus:border-accent-500 font-bold text-sm resize-none"></textarea>
-                </div>
+                <!-- Dynamic Options Container -->
+                <div id="dynamic-options-wrapper" class="space-y-4"></div>
 
                 <button type="submit"
                     class="w-full bg-accent-600 text-white font-black py-6 rounded-[2rem] mt-2 hover:bg-accent-500 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm">
@@ -463,23 +508,98 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
             document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
         }
 
-        function handleTypeChange(select) {
-            const container = document.getElementById('options-container');
-            const opt = document.getElementById('options_input');
-            const typesWithOptions = ['multiple_choice', 'checkbox', 'true_false', 'matching'];
+        function getMatchingRowHtml(concept = '', def = '') {
+            return `
+                <div class="flex items-center gap-2 md:gap-4 animate-fade-in group">
+                    <div class="flex-1">
+                        <input type="text" name="matching_concept[]" value="${concept}" placeholder="Concepto" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] outline-none focus:border-accent-500 font-bold text-xs" required>
+                    </div>
+                    <i data-lucide="arrow-right-left" class="w-4 h-4 text-slate-300 flex-shrink-0"></i>
+                    <div class="flex-1">
+                        <input type="text" name="matching_definition[]" value="${def}" placeholder="Respuesta / Definición" class="w-full px-5 py-3 bg-slate-50 border-2 border-emerald-100 rounded-[1.5rem] outline-none focus:border-emerald-500 font-bold text-xs" required>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-300 hover:text-rose-500 bg-rose-50/50 hover:bg-rose-100 rounded-xl transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            `;
+        }
+        
+        function getChoiceRowHtml(inputType, val = '') {
+            return `
+                <div class="flex items-center gap-4 animate-fade-in">
+                    <div class="w-8 flex justify-center">
+                        <input type="${inputType}" name="correct_opt[]" value="${val}" class="w-5 h-5 text-accent-600 focus:ring-accent-500 border-slate-300 rounded${inputType === 'radio' ? '-full' : ''}">
+                    </div>
+                    <input type="text" name="dynamic_options[]" value="${val}" onkeyup="this.previousElementSibling.firstElementChild.value = this.value" placeholder="Opción" class="flex-1 px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] outline-none focus:border-accent-500 font-bold text-xs" required>
+                    <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-300 hover:text-rose-500 bg-rose-50/50 hover:bg-rose-100 rounded-xl transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            `;
+        }
 
-            if (typesWithOptions.includes(select.value)) {
-                container.classList.remove('hidden');
-                if (select.value === 'true_false') {
-                    opt.value = 'Verdadero\nFalso';
-                    opt.readOnly = true;
-                } else {
-                    opt.readOnly = false;
-                    if (opt.value === 'Verdadero\nFalso') opt.value = '';
-                }
-            } else {
-                container.classList.add('hidden');
+        function addMatchingRow() {
+            document.getElementById('matching_rows').insertAdjacentHTML('beforeend', getMatchingRowHtml());
+            lucide.createIcons();
+        }
+
+        function addChoiceRow(inputType) {
+            document.getElementById('choice_rows').insertAdjacentHTML('beforeend', getChoiceRowHtml(inputType));
+            lucide.createIcons();
+        }
+
+        function handleTypeChange(select) {
+            const wrapper = document.getElementById('dynamic-options-wrapper');
+            wrapper.innerHTML = '';
+            
+            if (select.value === 'matching') {
+                wrapper.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between ml-4 mr-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pares Correctos (Concepto <i data-lucide="arrow-right" class="inline w-3 h-3 mx-1"></i> Respuesta)</label>
+                        </div>
+                        <div id="matching_rows" class="space-y-3">
+                            ${getMatchingRowHtml()}
+                            ${getMatchingRowHtml()}
+                            ${getMatchingRowHtml()}
+                        </div>
+                        <button type="button" onclick="addMatchingRow()" class="mt-2 text-[10px] text-accent-600 font-bold hover:text-accent-500 flex items-center bg-accent-50 px-4 py-2 rounded-xl transition-colors ml-1">
+                            <i data-lucide="plus" class="w-3 h-3 mr-2"></i> Añadir Par
+                        </button>
+                        <p class="text-[10px] text-slate-400 ml-4 font-bold">NOTA: Estos pares formarán la calificación correcta. A los estudiantes se les mostrarán desordenados automáticamente.</p>
+                    </div>
+                `;
+            } else if (select.value === 'multiple_choice' || select.value === 'checkbox') {
+                const inputType = select.value === 'multiple_choice' ? 'radio' : 'checkbox';
+                wrapper.innerHTML = `
+                    <div class="space-y-4">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Opciones de Respuesta <span class="font-normal">(Marca la correcta para autocalificar)</span></label>
+                        <div id="choice_rows" class="space-y-3">
+                            ${getChoiceRowHtml(inputType)}
+                            ${getChoiceRowHtml(inputType)}
+                        </div>
+                        <button type="button" onclick="addChoiceRow('${inputType}')" class="mt-2 text-[10px] text-accent-600 font-bold hover:text-accent-500 flex items-center bg-accent-50 px-4 py-2 rounded-xl transition-colors ml-1">
+                            <i data-lucide="plus" class="w-3 h-3 mr-2"></i> Añadir Opción
+                        </button>
+                    </div>
+                `;
+            } else if (select.value === 'true_false') {
+                wrapper.innerHTML = `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Respuesta Correcta</label>
+                        <select name="correct_tf" class="w-full px-6 py-4 bg-slate-50 border-2 border-emerald-100 rounded-[2rem] outline-none focus:border-emerald-500 font-black text-sm text-emerald-700">
+                            <option value="Verdadero">Verdadera</option>
+                            <option value="Falso">Falsa</option>
+                        </select>
+                    </div>
+                `;
+            } else if (select.value === 'text') {
+                wrapper.innerHTML = `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 text-emerald-600">Respuesta Correcta (Exacta)</label>
+                        <input type="text" name="correct_text" placeholder="Ej: París" class="w-full px-6 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] outline-none focus:border-emerald-500 font-bold text-sm text-emerald-800">
+                        <p class="text-[10px] text-slate-400 ml-4">La autocalificación verificará que el estudiante escriba exactamente esto (ignora mayúsculas).</p>
+                    </div>
+                `;
             }
+            lucide.createIcons();
         }
 
         // ── Auto-detect question type on paste ──────────────────────
@@ -553,11 +673,35 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     sel.value = type;
                     handleTypeChange(sel);
 
-                    // Pre-populate options if any
-                    const opts = extractOptionsFromPaste(type, text);
-                    if (opts) {
-                        const optInp = document.getElementById('options_input');
-                        if (optInp) optInp.value = opts;
+                    // Pre-populate dynamic options if any
+                    const rawOptsText = extractOptionsFromPaste(type, text);
+                    if (rawOptsText) {
+                        const lines = rawOptsText.split('\n');
+                        const wrapper = document.getElementById('dynamic-options-wrapper');
+                        
+                        if (type === 'matching') {
+                            const container = document.getElementById('matching_rows');
+                            if (container) {
+                                container.innerHTML = ''; // clear default
+                                lines.forEach(l => {
+                                    const parts = l.split(/[-:]/);
+                                    if (parts.length >= 2) {
+                                        container.insertAdjacentHTML('beforeend', getMatchingRowHtml(parts[0].trim(), parts[1].trim()));
+                                    }
+                                });
+                                lucide.createIcons();
+                            }
+                        } else if (type === 'multiple_choice' || type === 'checkbox') {
+                            const container = document.getElementById('choice_rows');
+                            if (container) {
+                                container.innerHTML = '';
+                                const inputType = type === 'multiple_choice' ? 'radio' : 'checkbox';
+                                lines.forEach(l => {
+                                    container.insertAdjacentHTML('beforeend', getChoiceRowHtml(inputType, l));
+                                });
+                                lucide.createIcons();
+                            }
+                        }
                     }
 
                     const labels = {
@@ -570,6 +714,8 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
             });
         }
     </script>
+    </div>
+    </main>
 </body>
 
 </html>

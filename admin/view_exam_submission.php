@@ -108,7 +108,7 @@ $typeLabels = [
 
 <body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-accent-500 selection:text-white pb-24 lg:pb-0">
 
-    <?php renderSidebar(''); ?>
+    <?php render_admin_sidebar(''); ?>
 
     <div class="lg:ml-[5.5rem] p-6 lg:p-12 min-h-screen">
         <main class="max-w-4xl mx-auto space-y-8 animate-fade-in">
