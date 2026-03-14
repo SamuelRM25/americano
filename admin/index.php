@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 
-<body class="min-h-screen flex items-center justify-center p-4 bg-pattern relative overflow-hidden">
+<body class="min-h-screen flex items-center justify-center p-4 bg-pattern relative">
     <!-- Decorative Accents -->
     <div class="absolute top-1/4 -left-20 w-80 h-80 bg-slate-800 rounded-full blur-[120px] opacity-40"></div>
     <div class="absolute bottom-1/4 -right-20 w-80 h-80 bg-slate-700 rounded-full blur-[120px] opacity-30"></div>

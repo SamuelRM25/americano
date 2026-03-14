@@ -110,11 +110,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_question'])) {
     }
 
     try {
-        $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, correct_answers, points, series) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$exam_id, $text, $type, $options, $correct_answers, $points, $series]);
-        $success = "Pregunta añadida correctamente.";
+        if (isset($_POST['question_id']) && !empty($_POST['question_id'])) {
+            $stmt = $pdo->prepare('UPDATE exam_questions SET question_text = ?, question_type = ?, options = ?, correct_answers = ?, points = ?, series = ? WHERE id = ? AND exam_id = ?');
+            $stmt->execute([$text, $type, $options, $correct_answers, $points, $series, $_POST['question_id'], $exam_id]);
+            $success = "Pregunta actualizada correctamente.";
+        } else {
+            $stmt = $pdo->prepare('INSERT INTO exam_questions (exam_id, question_text, question_type, options, correct_answers, points, series) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$exam_id, $text, $type, $options, $correct_answers, $points, $series]);
+            $success = "Pregunta añadida correctamente.";
+        }
     } catch (Exception $e) {
-        $error = "Error al añadir pregunta: " . $e->getMessage();
+        $error = "Error al procesar pregunta: " . $e->getMessage();
     }
 }
 
@@ -197,7 +203,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
 
     <?php render_admin_sidebar('exams'); ?>
 
-    <main class="flex-1 overflow-y-auto bg-slate-50 animate-fade-in custom-scrollbar">
+    <main class="flex-1 min-h-0 overflow-y-auto bg-[#fafbfc] animate-fade-in custom-scrollbar">
         <div class="p-6 lg:p-12 max-w-7xl mx-auto">
             <nav class="mb-8 lg:mb-12">
                 <a href="exams.php"
@@ -322,7 +328,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                 Banco de Preguntas
                                 <span class="ml-3 text-sm font-bold text-slate-400">(<?= count($questions) ?> en total)</span>
                             </h3>
-                            <button onclick="toggleModal('add-q-modal')"
+                            <button onclick="openNewQuestionModal()"
                                 class="bg-accent-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-accent-500 transition-all shadow-lg active:scale-95 flex items-center">
                                 <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Nueva Pregunta
                             </button>
@@ -399,12 +405,18 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                                                 <?php endif; ?>
                                             </div>
                                         </div>
-                                        <!-- Delete -->
-                                        <a href="?id=<?= $exam_id ?>&delete_question=<?= $q['id'] ?>"
-                                            onclick="return confirm('¿Eliminar esta pregunta?')"
-                                            class="p-2 text-slate-200 hover:text-rose-500 transition-colors flex-shrink-0 mt-1">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </a>
+                                        <!-- Actions -->
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <button onclick='openEditModal(<?= json_encode($q) ?>)'
+                                                class="p-2 text-slate-300 hover:text-accent-500 transition-colors flex-shrink-0">
+                                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                            </button>
+                                            <a href="?id=<?= $exam_id ?>&delete_question=<?= $q['id'] ?>"
+                                                onclick="return confirm('¿Eliminar esta pregunta?')"
+                                                class="p-2 text-slate-300 hover:text-rose-500 transition-colors flex-shrink-0">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -414,8 +426,8 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
 
     <!-- Add Question Modal -->
     <div id="add-q-modal"
@@ -423,8 +435,8 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
         <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl relative animate-slide-up my-8">
             <header class="flex justify-between items-center mb-8">
                 <div>
-                    <h3 class="text-3xl font-black text-slate-950 tracking-tighter italic">Nueva <span class="text-accent-500">Pregunta</span></h3>
-                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Pega texto para detectar el tipo automáticamente</p>
+                    <h3 id="modal-title" class="text-3xl font-black text-slate-950 tracking-tighter italic">Nueva <span class="text-accent-500">Pregunta</span></h3>
+                    <p id="modal-desc" class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Pega texto para detectar el tipo automáticamente</p>
                 </div>
                 <button onclick="toggleModal('add-q-modal')"
                     class="p-4 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-950 hover:text-white transition-all">
@@ -438,8 +450,9 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                 <span id="detect-text">Tipo detectado automáticamente</span>
             </div>
 
-            <form action="" method="POST" class="space-y-5">
+            <form id="question-form" action="" method="POST" class="space-y-5">
                 <input type="hidden" name="add_question" value="1">
+                <input type="hidden" name="question_id" id="question_id_input" value="">
 
                 <!-- Question text with paste detection -->
                 <div class="space-y-2">
@@ -491,7 +504,7 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                 <!-- Dynamic Options Container -->
                 <div id="dynamic-options-wrapper" class="space-y-4"></div>
 
-                <button type="submit"
+                <button type="submit" id="submit-btn"
                     class="w-full bg-accent-600 text-white font-black py-6 rounded-[2rem] mt-2 hover:bg-accent-500 shadow-2xl shadow-accent-500/30 transition-all uppercase tracking-[0.2em] text-sm">
                     Añadir al Banco
                 </button>
@@ -506,6 +519,11 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
             const modal = document.getElementById(id);
             modal.classList.toggle('hidden');
             document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('question-form').reset();
+                document.getElementById('question_id_input').value = '';
+                document.getElementById('dynamic-options-wrapper').innerHTML = '';
+            }
         }
 
         function getMatchingRowHtml(concept = '', def = '') {
@@ -523,11 +541,11 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
             `;
         }
         
-        function getChoiceRowHtml(inputType, val = '') {
+        function getChoiceRowHtml(inputType, val = '', isCorrect = false) {
             return `
                 <div class="flex items-center gap-4 animate-fade-in">
                     <div class="w-8 flex justify-center">
-                        <input type="${inputType}" name="correct_opt[]" value="${val}" class="w-5 h-5 text-accent-600 focus:ring-accent-500 border-slate-300 rounded${inputType === 'radio' ? '-full' : ''}">
+                        <input type="${inputType}" name="correct_opt[]" value="${val}" ${isCorrect ? 'checked' : ''} class="w-5 h-5 text-accent-600 focus:ring-accent-500 border-slate-300 rounded${inputType === 'radio' ? '-full' : ''}">
                     </div>
                     <input type="text" name="dynamic_options[]" value="${val}" onkeyup="this.previousElementSibling.firstElementChild.value = this.value" placeholder="Opción" class="flex-1 px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] outline-none focus:border-accent-500 font-bold text-xs" required>
                     <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-300 hover:text-rose-500 bg-rose-50/50 hover:bg-rose-100 rounded-xl transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -666,6 +684,9 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
         const questionInput = document.getElementById('question_text_input');
         if (questionInput) {
             questionInput.addEventListener('paste', function(e) {
+                // Only detect if we are not editing
+                if (document.getElementById('question_id_input').value !== '') return;
+                
                 setTimeout(() => {
                     const text = questionInput.value;
                     const type = detectQuestionType(text);
@@ -713,9 +734,62 @@ $courses = $pdo->query('SELECT * FROM courses')->fetchAll();
                 }, 50);
             });
         }
+
+        function openNewQuestionModal() {
+            document.getElementById('modal-title').innerHTML = 'Nueva <span class="text-accent-500">Pregunta</span>';
+            document.getElementById('modal-desc').textContent = 'Pega texto para detectar el tipo automáticamente';
+            document.getElementById('submit-btn').textContent = 'Añadir al Banco';
+            document.getElementById('question_id_input').value = '';
+            document.getElementById('question-form').reset();
+            document.getElementById('dynamic-options-wrapper').innerHTML = '';
+            toggleModal('add-q-modal');
+        }
+
+        function openEditModal(data) {
+            document.getElementById('modal-title').innerHTML = 'Editar <span class="text-accent-500">Pregunta</span>';
+            document.getElementById('modal-desc').textContent = 'Modifica los campos necesarios para actualizar la pregunta';
+            document.getElementById('submit-btn').textContent = 'Guardar Cambios';
+            document.getElementById('question_id_input').value = data.id;
+            document.getElementById('question_text_input').value = data.question_text;
+            document.getElementById('series_input').value = data.series || '';
+            document.getElementById('question_type_select').value = data.question_type;
+            const pointsInput = document.querySelector('input[name="points"]');
+            if (pointsInput) pointsInput.value = data.points;
+
+            handleTypeChange(document.getElementById('question_type_select'));
+
+            // Populate dynamic content
+            const options = data.options ? JSON.parse(data.options) : [];
+            const correct = data.correct_answers ? JSON.parse(data.correct_answers) : null;
+
+            if (data.question_type === 'matching') {
+                const container = document.getElementById('matching_rows');
+                container.innerHTML = '';
+                if (correct) {
+                    for (const [concept, definition] of Object.entries(correct)) {
+                        container.insertAdjacentHTML('beforeend', getMatchingRowHtml(concept, definition));
+                    }
+                }
+            } else if (data.question_type === 'multiple_choice' || data.question_type === 'checkbox') {
+                const container = document.getElementById('choice_rows');
+                container.innerHTML = '';
+                const inputType = data.question_type === 'multiple_choice' ? 'radio' : 'checkbox';
+                options.forEach(opt => {
+                    const isCorrect = Array.isArray(correct) ? correct.includes(opt) : (correct === opt);
+                    container.insertAdjacentHTML('beforeend', getChoiceRowHtml(inputType, opt, isCorrect));
+                });
+            } else if (data.question_type === 'true_false') {
+                const tfSelect = document.querySelector('select[name="correct_tf"]');
+                if (tfSelect && correct) tfSelect.value = correct[0];
+            } else if (data.question_type === 'text') {
+                const textInput = document.querySelector('input[name="correct_text"]');
+                if (textInput && correct) textInput.value = correct[0];
+            }
+
+            toggleModal('add-q-modal');
+            lucide.createIcons();
+        }
     </script>
-    </div>
-    </main>
 </body>
 
 </html>

@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/themes.php';
+require_once 'includes/student_sidebar.php';
 
 if (!isset($_SESSION['student_id'])) {
     header('Location: index.php');
@@ -26,10 +27,11 @@ if (empty($course_ids)) {
 }
 $placeholders = implode(',', array_fill(0, count($course_ids), '?'));
 
-// Fetch assignments and their submission status
-$stmt = $pdo->prepare("SELECT a.*, s.file_path, s.submitted_at 
+// Fetch assignments and check if already submitted
+$stmt = $pdo->prepare("SELECT a.*, c.name as course_name,
+                       (SELECT COUNT(*) FROM student_assignments sa WHERE sa.assignment_id = a.id AND sa.student_id = ?) as is_submitted
                        FROM assignments a 
-                       LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = ?
+                       JOIN courses c ON a.course_id = c.id
                        WHERE a.grade_id = ? AND a.course_id IN ($placeholders)
                        ORDER BY a.due_date ASC");
 $stmt->execute(array_merge([$student_id, $grade_id], $course_ids));
@@ -123,69 +125,29 @@ $assignments = $stmt->fetchAll();
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 selection:bg-accent-500 selection:text-white">
     <div class="flex h-screen overflow-hidden">
-        <!-- Unified Student Sidebar -->
-        <aside
-            class="w-72 bg-slate-950 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-white/5 shadow-2xl z-30 transform transition-transform duration-500">
-            <div class="p-8">
-                <div class="flex items-center space-x-4 mb-12 animate-fade-in">
-                    <div class="bg-accent-500 p-3 rounded-2xl shadow-xl shadow-accent-500/20">
-                        <i data-lucide="<?= $theme['icon'] ?>" class="w-8 h-8 text-white"></i>
-                    </div>
-                    <div>
-                        <span
-                            class="text-xl font-black tracking-tighter block leading-none italic uppercase">ALUMNO</span>
-                        <span
-                            class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">Colegio
-                            Americano</span>
-                    </div>
-                </div>
-
-                <nav class="space-y-2">
-                    <a href="dashboard.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="layout-dashboard"
-                            class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Inicio</span>
-                    </a>
-                    <a href="assignments.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-active group">
-                        <i data-lucide="book-open" class="w-5 h-5 text-accent-500"></i>
-                        <span class="font-bold text-white">Mis Tareas</span>
-                    </a>
-                    <a href="exams.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Exámenes</span>
-                    </a>
-                    <a href="calendar.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="calendar" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mi Agenda</span>
-                    </a>
-                    <a href="chat.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="message-square" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Chat</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div class="mt-auto p-8 border-t border-white/5">
-                <a href="logout.php"
-                    class="flex items-center space-x-3 text-slate-500 hover:text-rose-400 transition-colors group font-bold text-sm uppercase tracking-widest">
-                    <i data-lucide="log-out" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-                    <span>Cerrar Sesión</span>
-                </a>
-            </div>
-        </aside>
+        <!-- Shared Student Sidebar -->
+        <?php render_student_sidebar('assignments', $theme, $student_name); ?>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto bg-slate-50 relative p-8 lg:p-12">
+        <main class="flex-1 min-h-0 overflow-y-auto bg-slate-50 relative p-8 lg:p-12 custom-scrollbar scroll-smooth">
             <header class="mb-12 relative z-10 animate-fade-in">
                 <?php if (isset($_GET['msg'])): ?>
                     <?php if ($_GET['msg'] === 'success'): ?>
@@ -193,9 +155,8 @@ $assignments = $stmt->fetchAll();
                             class="bg-emerald-50 border border-emerald-100 text-emerald-700 px-8 py-6 rounded-[2rem] text-sm font-bold mb-12 flex items-center animate-slide-up shadow-xl shadow-emerald-500/10">
                             <i data-lucide="check-circle" class="w-6 h-6 mr-4 text-emerald-500"></i>
                             <div>
-                                <p class="text-lg">¡Tarea entregada con éxito!</p>
-                                <p class="text-xs font-medium opacity-70">Tu archivo ha sido subido y registrado correctamente.
-                                </p>
+                                <p class="text-lg">¡Tarea enviada con éxito!</p>
+                                <p class="text-xs font-medium opacity-70">Tu profesor revisará tu entrega pronto.</p>
                             </div>
                         </div>
                     <?php elseif ($_GET['msg'] === 'error'): ?>
@@ -203,115 +164,92 @@ $assignments = $stmt->fetchAll();
                             class="bg-rose-50 border border-rose-100 text-rose-700 px-8 py-6 rounded-[2rem] text-sm font-bold mb-12 flex items-center animate-slide-up shadow-xl shadow-rose-500/10">
                             <i data-lucide="x-circle" class="w-6 h-6 mr-4 text-rose-500"></i>
                             <div>
-                                <p class="text-lg">Error al subir la tarea</p>
-                                <p class="text-xs font-medium opacity-70">
-                                    <?= htmlspecialchars($_GET['error'] ?? 'Ocurrió un problema durante la subida.') ?>
-                                </p>
+                                <p class="text-lg">Error al enviar la tarea</p>
+                                <p class="text-xs font-medium opacity-70">Ocurrió un problema al procesar tu archivo.</p>
                             </div>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
 
                 <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] mb-2 leading-none">Académico /
-                    Tareas</h2>
-                <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4">Mis <span
-                        class="italic text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Entregas</span>
+                    Actividades</h2>
+                <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4 italic uppercase">Mis <span
+                        class="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Tareas</span>
                 </h1>
-                <p class="text-slate-500 font-medium">Gestiona tus proyectos y tareas pendientes.</p>
+                <p class="text-slate-500 font-medium">Gestiona tus entregas y mantente al día con tus clases.</p>
             </header>
 
-            <div class="grid grid-cols-1 gap-8 relative z-10">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 relative z-10">
                 <?php if (empty($assignments)): ?>
                     <div
-                        class="bg-white p-24 rounded-[3rem] text-center border-4 border-dashed border-slate-100 flex flex-col items-center">
-                        <i data-lucide="folder-open" class="w-20 h-20 text-slate-200 mb-6"></i>
-                        <p class="text-2xl font-black text-slate-300 italic">No hay tareas asignadas.</p>
+                        class="col-span-full bg-white p-24 rounded-[3rem] text-center border-4 border-dashed border-slate-100 flex flex-col items-center">
+                        <i data-lucide="inbox" class="w-20 h-20 text-slate-200 mb-6"></i>
+                        <p class="text-2xl font-black text-slate-300 italic">No tienes tareas pendientes por ahora.</p>
                     </div>
                 <?php else: ?>
                     <?php foreach ($assignments as $index => $assignment): ?>
-                        <div class="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden group animate-slide-up"
+                        <div class="bg-white p-10 rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group animate-slide-up"
                             style="animation-delay: <?= $index * 100 ?>ms">
-                            <div class="p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                                <div class="flex items-start space-x-8 flex-1">
-                                    <div
-                                        class="w-20 h-20 bg-accent-50 text-accent-600 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-inner group-hover:bg-accent-600 group-hover:text-white transition-all transform group-hover:rotate-6">
-                                        <i data-lucide="file-text" class="w-10 h-10"></i>
-                                    </div>
-                                    <div class="space-y-3">
-                                        <div class="flex items-center space-x-4">
-                                            <h3
-                                                class="text-3xl font-black text-slate-900 tracking-tight group-hover:text-accent-600 transition-colors uppercase italic">
-                                                <?= $assignment['title'] ?>
-                                            </h3>
-                                            <?php if ($assignment['file_path']): ?>
-                                                <span
-                                                    class="px-4 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center border border-emerald-100">
-                                                    <i data-lucide="check-circle" class="w-3 h-3 mr-2"></i> Entregado
-                                                </span>
-                                            <?php else: ?>
-                                                <span
-                                                    class="px-4 py-1.5 bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center border border-rose-100">
-                                                    <i data-lucide="clock" class="w-3 h-3 mr-2"></i> Pendiente
-                                                </span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <p class="text-slate-500 font-medium leading-relaxed max-w-2xl">
-                                            <?= $assignment['description'] ?>
-                                        </p>
-                                        <div class="flex items-center space-x-6 text-xs font-bold text-slate-400">
-                                            <span class="flex items-center"><i data-lucide="calendar"
-                                                    class="w-4 h-4 mr-2 text-accent-500"></i> Límite:
-                                                <?= date('d M, Y - H:i', strtotime($assignment['due_date'])) ?></span>
-                                            <?php if ($assignment['submitted_at']): ?>
-                                                <span class="flex items-center"><i data-lucide="check"
-                                                        class="w-4 h-4 mr-2 text-emerald-500"></i> Enviado el:
-                                                    <?= date('d M, Y', strtotime($assignment['submitted_at'])) ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
+                            <div class="flex items-center mb-8">
+                                <div
+                                    class="w-16 h-16 bg-accent-50 text-accent-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner group-hover:bg-accent-600 group-hover:text-white transition-all transform group-hover:rotate-6">
+                                    <i data-lucide="file-text" class="w-8 h-8"></i>
                                 </div>
+                                <div class="ml-6">
+                                    <h3
+                                        class="text-2xl font-black text-slate-900 tracking-tight leading-none uppercase italic mb-1">
+                                        <?= $assignment['title'] ?>
+                                    </h3>
+                                    <span
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"><?= $assignment['course_name'] ?></span>
+                                </div>
+                            </div>
 
-                                <div class="lg:w-80 w-full">
-                                    <?php if (!$assignment['file_path']): ?>
-                                        <form action="upload_handler.php" method="POST" enctype="multipart/form-data"
-                                            class="space-y-4">
-                                            <input type="hidden" name="assignment_id" value="<?= $assignment['id'] ?>">
-                                            <div class="relative group/input">
-                                                <input type="file" name="submission" required
-                                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                    onchange="updateFileName(this)">
-                                                <div
-                                                    class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center group-hover/input:border-accent-500 group-hover/input:bg-accent-50 transition-all">
-                                                    <i data-lucide="upload-cloud"
-                                                        class="w-8 h-8 mx-auto mb-2 text-slate-300 group-hover/input:text-accent-500 transition-colors"></i>
-                                                    <p
-                                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none transition-colors">
-                                                        Subir Archivo</p>
-                                                </div>
-                                            </div>
-                                            <button type="submit"
-                                                class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex items-center justify-center space-x-3 uppercase tracking-widest text-xs">
-                                                <span>Enviar Tarea</span>
-                                                <i data-lucide="send" class="w-4 h-4"></i>
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <div class="bg-emerald-50 border border-emerald-100 rounded-3xl p-8 text-center space-y-4">
+                            <p class="text-slate-500 text-sm font-medium mb-8 leading-relaxed line-clamp-2">
+                                <?= $assignment['description'] ?>
+                            </p>
+
+                            <div class="space-y-4 mb-8">
+                                <div class="flex items-center text-sm font-bold text-slate-500">
+                                    <i data-lucide="calendar" class="w-4 h-4 mr-3 text-accent-500"></i>
+                                    Vence: <?= date('d M, Y', strtotime($assignment['due_date'])) ?>
+                                </div>
+                                <?php if ($assignment['file_path']): ?>
+                                    <a href="admin/<?= $assignment['file_path'] ?>" download
+                                        class="flex items-center text-xs font-black text-accent-600 uppercase tracking-widest hover:text-accent-700 transition-colors">
+                                        <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                                        Descargar Guía
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-50">
+                                <?php if ($assignment['is_submitted']): ?>
+                                    <div
+                                        class="w-full bg-emerald-50 text-emerald-600 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-emerald-100">
+                                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                        <span>Entregada</span>
+                                    </div>
+                                <?php else: ?>
+                                    <form action="submit_assignment.php" method="POST" enctype="multipart/form-data"
+                                        class="space-y-4">
+                                        <input type="hidden" name="assignment_id" value="<?= $assignment['id'] ?>">
+                                        <div class="relative group/input">
+                                            <input type="file" name="submission" required
+                                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                                             <div
-                                                class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-                                                <i data-lucide="file-check" class="w-8 h-8 text-emerald-600"></i>
-                                            </div>
-                                            <div>
-                                                <p class="text-[10px] font-black text-emerald-800 uppercase tracking-[0.2em] mb-1">
-                                                    Archivo Enviado</p>
-                                                <a href="<?= $assignment['file_path'] ?>" target="_blank"
-                                                    class="text-sm font-bold text-emerald-600 hover:underline inline-flex items-center">
-                                                    Ver mi entrega <i data-lucide="external-link" class="w-3 h-3 ml-2"></i>
-                                                </a>
+                                                class="w-full bg-slate-50 border-2 border-dashed border-slate-200 py-4 rounded-2xl flex items-center justify-center text-xs font-bold text-slate-400 group-hover/input:border-accent-500 group-hover/input:text-accent-500 transition-all">
+                                                <i data-lucide="upload-cloud" class="w-4 h-4 mr-2"></i>
+                                                Seleccionar archivo
                                             </div>
                                         </div>
-                                    <?php endif; ?>
-                                </div>
+                                        <button type="submit"
+                                            class="w-full bg-slate-950 text-white font-black py-5 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex items-center justify-center space-x-3 text-xs uppercase tracking-widest">
+                                            <span>Subir Tarea</span>
+                                            <i data-lucide="send" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -320,41 +258,10 @@ $assignments = $stmt->fetchAll();
         </main>
     </div>
 
-    <nav
-        class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 px-8 py-4 flex items-center justify-between z-50">
-        <a href="dashboard.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
-        </a>
-        <a href="assignments.php" class="p-4 text-accent-500 bg-white/5 rounded-2xl">
-            <i data-lucide="book-open" class="w-6 h-6"></i>
-        </a>
-        <a href="chat.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="message-square" class="w-6 h-6"></i>
-        </a>
-        <a href="exams.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
-        </a>
-        <a href="calendar.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="calendar" class="w-6 h-6"></i>
-        </a>
-    </nav>
-
     <script>
         lucide.createIcons();
-
-        function updateFileName(input) {
-            const fileName = input.files[0] ? input.files[0].name : 'Subir Archivo';
-            const p = input.nextElementSibling.querySelector('p');
-            p.textContent = fileName;
-            if (input.files[0]) {
-                p.classList.remove('text-slate-400');
-                p.classList.add('text-accent-600');
-            } else {
-                p.classList.remove('text-accent-600');
-                p.classList.add('text-slate-400');
-            }
-        }
     </script>
+    <?php include 'includes/footer_scripts.php'; ?>
 </body>
 
 </html>

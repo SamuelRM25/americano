@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/themes.php';
+require_once 'includes/student_sidebar.php';
 
 if (!isset($_SESSION['student_id'])) {
     header('Location: index.php');
@@ -123,69 +124,29 @@ $exams = $stmt->fetchAll();
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 selection:bg-accent-500 selection:text-white">
     <div class="flex h-screen overflow-hidden">
-        <!-- Unified Student Sidebar -->
-        <aside
-            class="w-72 bg-slate-950 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-white/5 shadow-2xl z-30 transform transition-transform duration-500">
-            <div class="p-8">
-                <div class="flex items-center space-x-4 mb-12 animate-fade-in">
-                    <div class="bg-accent-500 p-3 rounded-2xl shadow-xl shadow-accent-500/20">
-                        <i data-lucide="<?= $theme['icon'] ?>" class="w-8 h-8 text-white"></i>
-                    </div>
-                    <div>
-                        <span
-                            class="text-xl font-black tracking-tighter block leading-none italic uppercase">ALUMNO</span>
-                        <span
-                            class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">Colegio
-                            Americano</span>
-                    </div>
-                </div>
-
-                <nav class="space-y-2">
-                    <a href="dashboard.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="layout-dashboard"
-                            class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Inicio</span>
-                    </a>
-                    <a href="assignments.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="book-open" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mis Tareas</span>
-                    </a>
-                    <a href="exams.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-active group">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 text-accent-500"></i>
-                        <span class="font-bold text-white">Exámenes</span>
-                    </a>
-                    <a href="calendar.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="calendar" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mi Agenda</span>
-                    </a>
-                    <a href="chat.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="message-square" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Chat</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div class="mt-auto p-8 border-t border-white/5">
-                <a href="logout.php"
-                    class="flex items-center space-x-3 text-slate-500 hover:text-rose-400 transition-colors group font-bold text-sm uppercase tracking-widest">
-                    <i data-lucide="log-out" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-                    <span>Cerrar Sesión</span>
-                </a>
-            </div>
-        </aside>
+        <!-- Shared Student Sidebar -->
+        <?php render_student_sidebar('exams', $theme, $student_name); ?>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto bg-slate-50 relative p-8 lg:p-12">
+        <main class="flex-1 min-h-0 overflow-y-auto bg-slate-50 relative p-8 lg:p-12 custom-scrollbar scroll-smooth">
             <header class="mb-12 relative z-10 animate-fade-in">
                 <?php if (isset($_GET['msg'])): ?>
                     <?php if ($_GET['msg'] === 'success'): ?>
@@ -223,8 +184,8 @@ $exams = $stmt->fetchAll();
 
                 <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] mb-2 leading-none">Académico /
                     Evaluaciones</h2>
-                <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4">Mis <span
-                        class="italic text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Exámenes</span>
+                <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4 italic uppercase">Mis <span
+                        class="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Exámenes</span>
                 </h1>
                 <p class="text-slate-500 font-medium">Demuestra tus conocimientos y alcanza tus metas.</p>
             </header>
@@ -270,7 +231,7 @@ $exams = $stmt->fetchAll();
                             <div class="pt-8 border-t border-slate-50">
                                 <?php
                                 $now = time();
-                                $start = $exam['start_time'] ? strtotime($exam['start_time']) : null;
+                                $start = isset($exam['start_time']) && $exam['start_time'] ? strtotime($exam['start_time']) : null;
                                 $due = strtotime($exam['due_date']);
                                 $locked = ($start !== null && $now < $start);
                                 $expired = ($now > $due);
@@ -295,12 +256,12 @@ $exams = $stmt->fetchAll();
                                     </div>
                                 <?php else: ?>
                                     <a href="take_exam.php?id=<?= $exam['id'] ?>"
-                                        class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex flex-col items-center justify-center text-xs uppercase tracking-widest">
+                                        class="w-full bg-slate-950 text-white font-black py-5 rounded-2xl hover:bg-accent-600 transition-all transform active:scale-95 shadow-xl shadow-slate-900/10 flex flex-col items-center justify-center text-xs uppercase tracking-widest">
                                         <div class="flex items-center space-x-3">
                                             <span>Empezar Ahora</span>
                                             <i data-lucide="zap" class="w-4 h-4"></i>
                                         </div>
-                                        <?php if ($exam['duration_minutes']): ?>
+                                        <?php if (isset($exam['duration_minutes']) && $exam['duration_minutes']): ?>
                                             <span class="text-white/50 normal-case font-medium mt-1 tracking-normal"><?= $exam['duration_minutes'] ?> min de tiempo</span>
                                         <?php endif; ?>
                                     </a>
@@ -311,42 +272,26 @@ $exams = $stmt->fetchAll();
                 <?php endif; ?>
             </div>
         </main>
-        <!-- Mobile Navigation Bar -->
-        <nav
-            class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 px-8 py-4 flex items-center justify-between z-50">
-            <a href="dashboard.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
-            </a>
-            <a href="assignments.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="book-open" class="w-6 h-6"></i>
-            </a>
-            <a href="chat.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="message-square" class="w-6 h-6"></i>
-            </a>
-            <a href="exams.php" class="p-4 text-accent-500 bg-white/5 rounded-2xl">
-                <i data-lucide="clipboard-check" class="w-6 h-6"></i>
-            </a>
-            <a href="calendar.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="calendar" class="w-6 h-6"></i>
-            </a>
-        </nav>
+    </div>
 
-        <script>
-            lucide.createIcons();
-            function updateCountdowns() {
-                document.querySelectorAll('.countdown-label').forEach(el => {
-                    const start = new Date(el.dataset.start.replace(' ', 'T')).getTime();
-                    const diff = Math.floor((start - Date.now()) / 1000);
-                    if (diff <= 0) { window.location.reload(); return; }
-                    const h = Math.floor(diff / 3600);
-                    const m = Math.floor((diff % 3600) / 60);
-                    const s = diff % 60;
-                    el.textContent = `Disponible en ${h > 0 ? h + 'h ' : ''}${m}m ${String(s).padStart(2,'0')}s`;
-                });
-            }
-            updateCountdowns();
-            setInterval(updateCountdowns, 1000);
-        </script>
+    <script>
+        lucide.createIcons();
+        function updateCountdowns() {
+            document.querySelectorAll('.countdown-label').forEach(el => {
+                const startString = el.dataset.start.replace(' ', 'T');
+                const start = new Date(startString).getTime();
+                const diff = Math.floor((start - Date.now()) / 1000);
+                if (diff <= 0) { window.location.reload(); return; }
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                el.textContent = `Disponible en ${h > 0 ? h + 'h ' : ''}${m}m ${String(s).padStart(2,'0')}s`;
+            });
+        }
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
+    </script>
+    <?php include 'includes/footer_scripts.php'; ?>
 </body>
 
 </html>

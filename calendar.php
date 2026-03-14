@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/themes.php';
+require_once 'includes/student_sidebar.php';
 
 if (!isset($_SESSION['student_id'])) {
     header('Location: index.php');
@@ -11,28 +12,42 @@ if (!isset($_SESSION['student_id'])) {
 $student_id = $_SESSION['student_id'];
 $student_name = $_SESSION['student_name'];
 $grade_id = $_SESSION['grade_id'];
-$course_id = $_SESSION['course_id'];
 $grade_name = $_SESSION['grade_name'];
-$course_name = $_SESSION['course_name'];
+$active_courses = $_SESSION['active_courses'] ?? [];
 
 $theme = get_grade_theme($grade_name);
 
-// Fetch assignments and exams for the calendar
-$stmt = $pdo->prepare('SELECT title as title, due_date as start, "assignment" as type FROM assignments WHERE grade_id = ? AND course_id = ?
-                       UNION
-                       SELECT title as title, due_date as start, "exam" as type FROM exams WHERE grade_id = ? AND course_id = ?');
-$stmt->execute([$grade_id, $course_id, $grade_id, $course_id]);
-$events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Fetch all enrolled courses for this student
+$stmt_courses = $pdo->prepare('SELECT c.id, c.name FROM courses c JOIN student_courses sc ON c.id = sc.course_id WHERE sc.student_id = ?');
+$stmt_courses->execute([$student_id]);
+$student_courses = $stmt_courses->fetchAll();
 
-// Format events for FullCalendar
-$formatted_events = array_map(function ($e) {
-    return [
-        'title' => ($e['type'] === 'exam' ? '🎓 ' : '📝 ') . $e['title'],
-        'start' => $e['start'],
-        'className' => $e['type'] === 'exam' ? 'event-exam' : 'event-assignment',
-        'allDay' => false
-    ];
-}, $events);
+$course_ids = array_column($student_courses, 'id');
+if (empty($course_ids)) {
+    $course_ids = [0];
+}
+$placeholders = implode(',', array_fill(0, count($course_ids), '?'));
+
+// Fetch events (Assignments and Exams)
+$stmt_events = $pdo->prepare("
+    (SELECT title, due_date as date, 'assignment' as type, c.name as course_name 
+     FROM assignments a JOIN courses c ON a.course_id = c.id 
+     WHERE a.grade_id = ? AND a.course_id IN ($placeholders))
+    UNION ALL
+    (SELECT title, due_date as date, 'exam' as type, c.name as course_name 
+     FROM exams e JOIN courses c ON e.course_id = c.id 
+     WHERE e.grade_id = ? AND e.course_id IN ($placeholders))
+    ORDER BY date ASC
+");
+$params = array_merge([$grade_id], $course_ids, [$grade_id], $course_ids);
+$stmt_events->execute($params);
+$events = $stmt_events->fetchAll();
+
+$events_by_date = [];
+foreach ($events as $event) {
+    $date = date('Y-m-d', strtotime($event['date']));
+    $events_by_date[$date][] = $event;
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -40,7 +55,7 @@ $formatted_events = array_map(function ($e) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendario - Colegio Americano</title>
+    <title>Mi Agenda - Colegio Americano</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -71,7 +86,6 @@ $formatted_events = array_map(function ($e) {
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <style>
         :root {
             --accent-50: #f0f9ff;
@@ -113,218 +127,89 @@ $formatted_events = array_map(function ($e) {
             font-family: 'Outfit', sans-serif;
         }
 
-        .sidebar-active {
-            background: rgba(255, 255, 255, 0.05);
-            border-left: 4px solid var(--accent-500);
-        }
-
-        /* FullCalendar Customization */
-        .fc {
-            --fc-border-color: rgba(226, 232, 240, 0.8);
-            --fc-today-bg-color: var(--accent-50);
-        }
-
-        .fc .fc-toolbar-title {
-            font-weight: 900;
-            font-style: italic;
-            font-size: 1.5rem !important;
-            text-transform: uppercase;
-            color: #0f172a;
-        }
-
-        .fc .fc-button-primary {
-            background: #0f172a;
-            border: none;
-            font-weight: 800;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.1em;
-            border-radius: 1rem;
-            padding: 0.75rem 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .fc .fc-button-primary:hover {
-            background: var(--accent-600);
-            transform: translateY(-2px);
-        }
-
-        .fc .fc-button-primary:disabled {
-            background: #f1f5f9;
-            color: #94a3b8;
-        }
-
-        .fc-theme-standard td,
-        .fc-theme-standard th {
-            border: 1px solid rgba(226, 232, 240, 0.5);
-        }
-
-        .fc-daygrid-day-number {
-            font-weight: 800;
-            font-size: 0.9rem;
-            color: #64748b;
-            padding: 1rem !important;
-        }
-
-        .fc-col-header-cell-cushion {
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-size: 0.7rem;
-            color: #94a3b8;
-            padding: 1rem !important;
-        }
-
-        .event-exam {
-            background: #0f172a !important;
-            border: none !important;
-            padding: 4px 10px !important;
-            border-radius: 8px !important;
-            font-weight: 700 !important;
-            font-size: 0.75rem !important;
-            color: white !important;
-        }
-
-        .event-assignment {
-            background: var(--accent-500) !important;
-            border: none !important;
-            padding: 4px 10px !important;
-            border-radius: 8px !important;
-            font-weight: 700 !important;
-            font-size: 0.75rem !important;
-            color: white !important;
-        }
-
-        .glass-container {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 3rem;
+        .calendar-day {
+            min-height: 120px;
         }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 selection:bg-accent-500 selection:text-white overflow-hidden">
     <div class="flex h-screen overflow-hidden">
-        <!-- Unified Student Sidebar -->
-        <aside
-            class="w-72 bg-slate-950 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-white/5 shadow-2xl z-30 transform transition-transform duration-500">
-            <div class="p-8">
-                <div class="flex items-center space-x-4 mb-12 animate-fade-in">
-                    <div class="bg-accent-500 p-3 rounded-2xl shadow-xl shadow-accent-500/20">
-                        <i data-lucide="<?= $theme['icon'] ?>" class="w-8 h-8 text-white"></i>
-                    </div>
-                    <div>
-                        <span
-                            class="text-xl font-black tracking-tighter block leading-none italic uppercase">ALUMNO</span>
-                        <span
-                            class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">Colegio
-                            Americano</span>
-                    </div>
-                </div>
-
-                <nav class="space-y-2">
-                    <a href="dashboard.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="layout-dashboard"
-                            class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Inicio</span>
-                    </a>
-                    <a href="assignments.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="book-open" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mis Tareas</span>
-                    </a>
-                    <a href="exams.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Exámenes</span>
-                    </a>
-                    <a href="calendar.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-active group">
-                        <i data-lucide="calendar" class="w-5 h-5 text-accent-500"></i>
-                        <span class="font-bold text-white">Mi Agenda</span>
-                    </a>
-                    <a href="chat.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="message-square" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Chat</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div class="mt-auto p-8 border-t border-white/5">
-                <a href="logout.php"
-                    class="flex items-center space-x-3 text-slate-500 hover:text-rose-400 transition-colors group font-bold text-sm uppercase tracking-widest">
-                    <i data-lucide="log-out" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-                    <span>Cerrar Sesión</span>
-                </a>
-            </div>
-        </aside>
+        <!-- Shared Student Sidebar -->
+        <?php render_student_sidebar('calendar', $theme, $student_name); ?>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto bg-slate-50 relative p-8 lg:p-12">
-            <header class="mb-12 relative z-10 animate-fade-in">
-                <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] mb-2 leading-none">Académico /
-                    Agenda</h2>
-                <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4">Mi <span
-                        class="italic text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Calendario</span>
-                </h1>
-                <div class="flex items-center space-x-8 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-accent-500 mr-2"></span>
-                        Tareas</span>
-                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-slate-900 mr-2"></span>
-                        Exámenes</span>
-                </div>
+        <main class="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-8 lg:p-12 custom-scrollbar">
+            <header class="mb-12 animate-fade-in">
+                <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] mb-2 leading-none">Agenda / Cronograma</h2>
+                <h1 class="text-6xl font-black text-slate-900 tracking-tighter italic uppercase">Calendario <span class="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600">Escolar</span></h1>
             </header>
 
-            <div class="glass-container p-10 bg-white shadow-xl shadow-slate-200/50 animate-slide-up relative z-10">
-                <div id='calendar'></div>
+            <div class="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-slide-up">
+                <div class="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                    <h3 class="text-2xl font-black text-slate-900 italic tracking-tight uppercase"><?= date('F Y') ?></h3>
+                    <div class="flex space-x-4">
+                        <button class="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-accent-500 transition-all shadow-sm">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button class="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-accent-500 transition-all shadow-sm">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-7 border-b border-slate-50">
+                    <?php 
+                    $days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                    foreach($days as $day): ?>
+                        <div class="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest"><?= $day ?></div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="grid grid-cols-7">
+                    <?php
+                    $year = date('Y');
+                    $month = date('m');
+                    $first_day = date('w', strtotime("$year-$month-01"));
+                    $days_in_month = date('t', strtotime("$year-$month-01"));
+                    
+                    // Empty cells before first day
+                    for($i = 0; $i < $first_day; $i++) {
+                        echo '<div class="calendar-day p-4 border-r border-b border-slate-50 bg-slate-50/10"></div>';
+                    }
+
+                    // Days of month
+                    for($day = 1; $day <= $days_in_month; $day++) {
+                        $date = "$year-$month-" . str_pad($day, 2, '0', STR_PAD_LEFT);
+                        $has_events = isset($events_by_date[$date]);
+                        $is_today = ($date === date('Y-m-d'));
+                        
+                        echo '<div class="calendar-day p-6 border-r border-b border-slate-50 hover:bg-slate-50/50 transition-colors relative group">';
+                        echo '<span class="text-lg font-black ' . ($is_today ? 'bg-accent-500 text-white w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg shadow-accent-500/20' : 'text-slate-400 group-hover:text-slate-900') . ' transition-colors">' . $day . '</span>';
+                        
+                        if($has_events) {
+                            echo '<div class="mt-4 space-y-2">';
+                            foreach($events_by_date[$date] as $event) {
+                                $color = $event['type'] === 'exam' ? 'rose' : 'accent';
+                                echo '<div class="px-3 py-2 bg-'.$color.'-50 text-'.$color.'-600 rounded-xl text-[9px] font-black uppercase tracking-tight border border-'.$color.'-100/50 truncate hover:scale-105 transition-transform cursor-pointer" title="'.$event['title'].'">';
+                                echo '<i data-lucide="' . ($event['type'] === 'exam' ? 'zap' : 'file-text') . '" class="w-3 h-3 inline mr-1 opacity-70"></i>';
+                                echo $event['title'];
+                                echo '</div>';
+                            }
+                            echo '</div>';
+                        }
+                        echo '</div>';
+                    }
+                    ?>
+                </div>
             </div>
         </main>
     </div>
 
-    <nav
-        class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 px-8 py-4 flex items-center justify-between z-50">
-        <a href="dashboard.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
-        </a>
-        <a href="assignments.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="book-open" class="w-6 h-6"></i>
-        </a>
-        <a href="chat.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="message-square" class="w-6 h-6"></i>
-        </a>
-        <a href="exams.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
-        </a>
-        <a href="calendar.php" class="p-4 text-accent-500 bg-white/5 rounded-2xl">
-            <i data-lucide="calendar" class="w-6 h-6"></i>
-        </a>
-    </nav>
-
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var calendarEl = document.getElementById('calendar');
-            var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                locale: 'es',
-                events: <?= json_encode($formatted_events) ?>,
-                eventTimeFormat: {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    meridiem: false
-                }
-            });
-            calendar.render();
-            lucide.createIcons();
-        });
+        lucide.createIcons();
     </script>
+    <?php include 'includes/footer_scripts.php'; ?>
 </body>
 
 </html>

@@ -120,7 +120,7 @@ if ($selected_student_id) {
     </style>
 </head>
 
-<body class="bg-[#f8fafc] min-h-screen flex overflow-hidden">
+<body class="bg-[#f8fafc] h-screen flex overflow-hidden">
     <?php render_admin_sidebar('chat'); ?>
 
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">

@@ -207,7 +207,7 @@ unset($s);
     </style>
 </head>
 
-<body class="bg-[#f8fafc] min-h-screen flex overflow-hidden">
+<body class="bg-[#f8fafc] h-screen flex overflow-hidden">
     <?php render_admin_sidebar('students'); ?>
 
     <main class="flex-1 overflow-y-auto bg-slate-50 animate-fade-in custom-scrollbar">

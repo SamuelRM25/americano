@@ -2,48 +2,55 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/themes.php';
+require_once 'includes/student_sidebar.php';
 
 if (!isset($_SESSION['student_id'])) {
     header('Location: index.php');
     exit;
 }
 
+$student_id = $_SESSION['student_id'];
 $student_name = $_SESSION['student_name'];
-$grade_name = $_SESSION['grade_name'];
 $grade_id = $_SESSION['grade_id'];
-
-// Fetch all enrolled courses for this student
-$stmt_courses = $pdo->prepare('SELECT c.id, c.name FROM courses c JOIN student_courses sc ON c.id = sc.course_id WHERE sc.student_id = ?');
-$stmt_courses->execute([$_SESSION['student_id']]);
-$student_courses = $stmt_courses->fetchAll();
-
-$course_ids = array_column($student_courses, 'id');
-$course_names_text = implode(', ', array_column($student_courses, 'name'));
-
-if (empty($course_ids)) {
-    $course_ids = [0];
-}
+$grade_name = $_SESSION['grade_name'];
 
 $theme = get_grade_theme($grade_name);
 
-// Fetch assignments for all enrolled courses
-$placeholders = implode(',', array_fill(0, count($course_ids), '?'));
-$stmt = $pdo->prepare("SELECT a.*, c.name as course_name 
-                       FROM assignments a 
-                       JOIN courses c ON a.course_id = c.id
-                       WHERE a.grade_id = ? AND a.course_id IN ($placeholders) 
-                       ORDER BY a.due_date ASC");
-$stmt->execute(array_merge([$grade_id], $course_ids));
-$assignments = $stmt->fetchAll();
+// Fetch Assignments for this student's grade and courses
+$stmt_assignments = $pdo->prepare('
+    SELECT a.*, c.name as course_name 
+    FROM assignments a 
+    JOIN courses c ON a.course_id = c.id
+    JOIN student_courses sc ON c.id = sc.course_id
+    WHERE a.grade_id = ? AND sc.student_id = ?
+    ORDER BY a.due_date ASC
+');
+$stmt_assignments->execute([$grade_id, $student_id]);
+$assignments = $stmt_assignments->fetchAll();
 
-// Fetch upcoming exams
-$stmt = $pdo->prepare("SELECT e.*, c.name as course_name 
-                       FROM exams e 
-                       JOIN courses c ON e.course_id = c.id
-                       WHERE e.grade_id = ? AND e.course_id IN ($placeholders) 
-                       ORDER BY e.due_date ASC");
-$stmt->execute(array_merge([$grade_id], $course_ids));
-$exams = $stmt->fetchAll();
+// Fetch Exams for this student's grade and courses
+$stmt_exams = $pdo->prepare('
+    SELECT e.*, c.name as course_name 
+    FROM exams e 
+    JOIN courses c ON e.course_id = c.id
+    JOIN student_courses sc ON c.id = sc.course_id
+    WHERE e.grade_id = ? AND sc.student_id = ?
+    ORDER BY e.due_date ASC
+');
+$stmt_exams->execute([$grade_id, $student_id]);
+$exams = $stmt_exams->fetchAll();
+
+// Fetch Educational Content
+$stmt_content = $pdo->prepare('
+    SELECT ec.*, c.name as course_name 
+    FROM educational_content ec 
+    JOIN courses c ON ec.course_id = c.id 
+    JOIN student_courses sc ON c.id = sc.course_id
+    WHERE sc.student_id = ?
+    ORDER BY ec.id DESC
+');
+$stmt_content->execute([$student_id]);
+$educational_contents = $stmt_content->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -51,7 +58,7 @@ $exams = $stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Colegio Americano</title>
+    <title>Panel del Estudiante - Colegio Americano</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -71,12 +78,10 @@ $exams = $stmt->fetchAll();
                     animation: {
                         'fade-in': 'fadeIn 0.6s ease-out forwards',
                         'slide-up': 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-                        'float': 'float 6s ease-in-out infinite',
                     },
                     keyframes: {
                         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
                         slideUp: { '0%': { opacity: '0', transform: 'translateY(24px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
                     }
                 }
             }
@@ -87,15 +92,8 @@ $exams = $stmt->fetchAll();
     <style>
         :root {
             --accent-50: #f0f9ff;
-            --accent-100: #e0f2fe;
-            --accent-200: #bae6fd;
-            --accent-300: #7dd3fc;
-            --accent-400: #38bdf8;
             --accent-500: #0ea5e9;
             --accent-600: #0284c7;
-            --accent-700: #0369a1;
-            --accent-800: #075985;
-            --accent-900: #0c4a6e;
         }
 
         <?php if ($theme['accent'] === 'emerald'): ?>
@@ -142,109 +140,43 @@ $exams = $stmt->fetchAll();
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 selection:bg-accent-500 selection:text-white">
     <div class="flex h-screen overflow-hidden">
-        <!-- Unified Student Sidebar -->
-        <aside
-            class="w-72 bg-slate-950 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-white/5 shadow-2xl z-30 transform transition-transform duration-500">
-            <div class="p-8">
-                <div class="flex items-center space-x-4 mb-12 animate-fade-in">
-                    <div class="bg-accent-500 p-3 rounded-2xl shadow-xl shadow-accent-500/20">
-                        <i data-lucide="<?= $theme['icon'] ?>" class="w-8 h-8 text-white"></i>
-                    </div>
-                    <div>
-                        <span
-                            class="text-xl font-black tracking-tighter block leading-none italic uppercase">ALUMNO</span>
-                        <span
-                            class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">Colegio
-                            Americano</span>
-                    </div>
+        <!-- Shared Student Sidebar -->
+        <?php render_student_sidebar('dashboard', $theme, $student_name); ?>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-8 lg:p-12 scroll-smooth custom-scrollbar">
+            <header class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16 animate-fade-in">
+                <div class="space-y-2">
+                    <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] leading-none mb-4">Módulo de Estudiante / Bienvenido</h2>
+                    <h1 class="text-6xl font-black text-slate-900 tracking-tighter leading-none italic uppercase">Hola, <span class="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-accent-600"><?= explode(' ', $student_name)[0] ?></span></h1>
+                    <p class="text-slate-500 font-medium flex items-center">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 mr-2 text-accent-500"></i>
+                        <?= $grade_name ?> • Colegio Americano • Panel Inteligente
+                    </p>
                 </div>
-
-                <nav class="space-y-2">
-                    <a href="dashboard.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all sidebar-active group">
-                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-accent-500"></i>
-                        <span class="font-bold text-white">Inicio</span>
-                    </a>
-                    <a href="assignments.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="book-open" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mis Tareas</span>
-                    </a>
-                    <a href="exams.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Exámenes</span>
-                    </a>
-                    <a href="calendar.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="calendar" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Mi Agenda</span>
-                    </a>
-                    <a href="chat.php"
-                        class="flex items-center space-x-3 p-4 rounded-2xl transition-all text-slate-400 hover:text-white hover:bg-white/5 group">
-                        <i data-lucide="message-square" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium">Chat</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div class="mt-auto p-8 border-t border-white/5">
-                <a href="logout.php"
-                    class="flex items-center space-x-3 text-slate-500 hover:text-rose-400 transition-colors group font-bold text-sm uppercase tracking-widest">
-                    <i data-lucide="log-out" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-                    <span>Cerrar Sesión</span>
-                </a>
-            </div>
-        </aside>
-
-        <!-- Main Dashboard Content -->
-        <main class="flex-1 overflow-y-auto bg-slate-50 relative p-8 lg:p-12">
-            <!-- Background Orbs -->
-            <div
-                class="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-500/5 blur-[120px] rounded-full -mr-64 -mt-64 z-0">
-            </div>
-
-            <header class="flex justify-between items-start mb-16 relative z-10 animate-fade-in">
-                <div>
-                    <h2 class="text-xs font-black text-accent-600 uppercase tracking-[0.3em] mb-2 leading-none">Status
-                        Académico: Al día</h2>
-                    <h1 class="text-6xl font-black text-slate-900 tracking-tighter mb-4">
-                        Hola, <span
-                            class="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-500"><?= explode(' ', $student_name)[0] ?></span>
-                    </h1>
-                    <div class="flex items-center space-x-4">
-                        <span
-                            class="px-4 py-2 bg-white rounded-full border border-slate-200 text-xs font-bold text-slate-600 shadow-sm flex items-center">
-                            <i data-lucide="shield-check" class="w-3.5 h-3.5 mr-2 text-accent-500"></i>
-                            <?= $grade_name ?>
-                        </span>
-                        <span
-                            class="px-4 py-2 bg-white rounded-full border border-slate-200 text-xs font-bold text-slate-600 shadow-sm flex items-center">
-                            <i data-lucide="graduation-cap" class="w-3.5 h-3.5 mr-2 text-accent-500"></i>
-                            <?= $course_names_text ?>
-                        </span>
-                    </div>
-                </div>
-
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-4">
-                        <button id="register-biometry"
-                            class="bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 px-5 py-3 rounded-2xl transition-all flex items-center space-x-2 text-xs font-bold uppercase tracking-widest border border-slate-200 shadow-sm">
-                            <i data-lucide="fingerprint" class="w-4 h-4 text-accent-500"></i>
-                            <span>Activar Face ID</span>
-                        </button>
-                        <div class="text-right hidden sm:block leading-tight">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Bienvenido
-                                de nuevo</p>
-                            <p class="text-xl font-black text-slate-800 tracking-tighter italic">Alu.
-                                <?= explode(' ', $student_name)[0] ?>
-                            </p>
-                        </div>
+                <!-- Profile Indicator -->
+                <div class="flex items-center space-x-6 text-right">
+                    <div class="hidden md:block">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estatus Académico</p>
+                        <span class="px-4 py-1.5 bg-accent-50 text-accent-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-accent-100">Alumno Regular</span>
                     </div>
                     <div
                         class="w-16 h-16 bg-gradient-to-br from-accent-500 to-accent-700 rounded-[1.5rem] shadow-2xl shadow-accent-500/30 border-2 border-white flex items-center justify-center text-white text-3xl font-black transition-transform hover:rotate-6 cursor-pointer">
@@ -398,62 +330,47 @@ $exams = $stmt->fetchAll();
                     </div>
                 </aside>
             </div>
+
+            <!-- Educational Content Section -->
+            <section id="class-material" class="mt-20 animate-slide-up [animation-delay:500ms]">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Biblioteca Digital</h2>
+                        <p class="text-slate-500 font-medium">Material preparado por tus profesores</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <?php if (empty($educational_contents)): ?>
+                        <div class="col-span-full bg-white p-12 rounded-[3rem] text-center border-2 border-dashed border-slate-200 italic font-bold text-slate-300">
+                            <p>No hay material cargado por ahora.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($educational_contents as $content): ?>
+                            <a href="view_content.php?id=<?= $content['id'] ?>" class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-accent-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-accent-500/10 transition-colors"></div>
+                                <div class="w-14 h-14 bg-accent-50 text-accent-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                    <i data-lucide="<?= $content['type'] === 'scorm' ? 'sparkles' : ($content['type'] === 'presentation' ? 'monitor-play' : 'file-text') ?>" class="w-7 h-7"></i>
+                                </div>
+                                <h4 class="text-xl font-black text-slate-900 leading-tight mb-2"><?= $content['title'] ?></h4>
+                                <div class="flex items-center space-x-3 mt-4">
+                                    <span class="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded-lg"><?= $content['course_name'] ?></span>
+                                    <span class="text-[9px] font-black uppercase text-accent-600 border border-accent-100 px-2 py-1 rounded-lg">
+                                        <?= $content['type'] === 'scorm' ? 'Animado' : ($content['type'] === 'presentation' ? 'Diapositivas' : 'Wiki') ?>
+                                    </span>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </section>
         </main>
     </div>
 
-    <nav
-        class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 px-8 py-4 flex items-center justify-between z-50">
-        <a href="dashboard.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
-        </a>
-        <a href="assignments.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="book-open" class="w-6 h-6"></i>
-        </a>
-        <a href="chat.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="message-square" class="w-6 h-6"></i>
-        </a>
-        <a href="exams.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
-        </a>
-        <a href="calendar.php" class="p-4 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="calendar" class="w-6 h-6"></i>
-        </a>
-    </nav>
-
     <script>
         lucide.createIcons();
-
-        document.getElementById('register-biometry')?.addEventListener('click', async () => {
-            if (!window.PublicKeyCredential) {
-                alert("Tu dispositivo no admite biometría.");
-                return;
-            }
-
-            try {
-                // Simulation of WebAuthn registration
-                const credentialId = btoa(Math.random().toString());
-                const publicKey = "PREMIUM_ENCRYPTED_KEY_SIMULATION";
-
-                const response = await fetch('webauthn_handler.php?action=register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ credential_id: credentialId, public_key: publicKey })
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    alert("¡Biometría activada con éxito! Ahora puedes entrar con Face ID.");
-                    localStorage.setItem('has_biometrics', 'true');
-                    localStorage.setItem('bio_id', credentialId);
-                } else {
-                    alert("Error: " + (result.error || "No se pudo activar la biometría."));
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Error crítico al procesar la solicitud.");
-            }
-        });
     </script>
+    <?php include 'includes/footer_scripts.php'; ?>
 </body>
 
 </html>

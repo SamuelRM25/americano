@@ -167,7 +167,7 @@ $questions = $stmt->fetchAll();
     </style>
 </head>
 
-<body class="focus-mode min-h-screen text-slate-300">
+<body class="focus-mode min-h-screen text-slate-300 overflow-y-auto">
     <!-- Progress Header -->
     <header class="fixed top-0 inset-x-0 h-24 question-card z-50 px-8 flex items-center justify-between">
         <div class="flex items-center space-x-6">

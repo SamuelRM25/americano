@@ -4,6 +4,8 @@
  * Configured for both local and cloud environments using Environment Variables.
  */
 
+date_default_timezone_set('America/Guatemala');
+
 $host = getenv('DB_HOST') ?: 'byhrxwbsgw3qn1pix9ky-mysql.services.clever-cloud.com';
 $db = getenv('DB_NAME') ?: 'byhrxwbsgw3qn1pix9ky';
 $user = getenv('DB_USER') ?: 'utfeg78xjtoqdlac';
@@ -20,6 +22,7 @@ $options = [
 
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
+    $pdo->exec("SET time_zone = '-06:00'");
 } catch (\PDOException $e) {
     throw new \PDOException($e->getMessage(), (int) $e->getCode());
 }

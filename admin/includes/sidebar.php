@@ -40,6 +40,11 @@ function render_admin_sidebar($active_page) {
                     <i data-lucide="check-square" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
                     <span class="<?= $active_page === 'submissions' ? 'font-bold' : 'font-medium' ?>">Ver Calificaciones</span>
                 </a>
+                <a href="educational_content.php"
+                    class="flex items-center space-x-3 p-4 rounded-2xl transition-all <?= $active_page === 'educational_content' ? 'sidebar-item-active' : 'text-slate-400 hover:text-white hover:bg-white/5 group' ?>">
+                    <i data-lucide="library" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                    <span class="<?= $active_page === 'educational_content' ? 'font-bold' : 'font-medium' ?>">Contenido Educativo</span>
+                </a>
             </nav>
         </div>
 
@@ -78,6 +83,11 @@ function render_admin_sidebar($active_page) {
             class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'submissions' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
             <i data-lucide="check-square" class="w-5 h-5"></i>
             <span class="text-[9px] font-black uppercase tracking-widest mt-1">Notas</span>
+        </a>
+        <a href="educational_content.php"
+            class="flex flex-col items-center py-2 px-3 rounded-xl transition-all <?= $active_page === 'educational_content' ? 'text-sky-400' : 'text-slate-500 hover:text-slate-300' ?>">
+            <i data-lucide="library" class="w-5 h-5"></i>
+            <span class="text-[9px] font-black uppercase tracking-widest mt-1">Biblioteca</span>
         </a>
         <a href="logout.php"
             class="flex flex-col items-center py-2 px-3 rounded-xl transition-all text-slate-500 hover:text-rose-400">
