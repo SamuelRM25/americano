@@ -256,28 +256,23 @@ $questions = $stmt->fetchAll();
 
                                 <?php elseif ($q['question_type'] === 'matching'): ?>
                                     <?php
-                                    $pairs = json_decode($q['options'], true);
-                                    // Mix the second column
-                                    $answers = [];
-                                    foreach ($pairs as $pair) {
-                                        $parts = explode(':', $pair);
-                                        if (isset($parts[1])) {
-                                            $answers[] = trim($parts[1]);
-                                        }
-                                    }
+                                    $premises = json_decode($q['options'], true);
+                                    $correct_map = json_decode($q['correct_answers'], true);
+                                    
+                                    // Get all possible definitions from the correct map
+                                    $answers = array_values($correct_map);
                                     shuffle($answers);
-                                    foreach ($pairs as $p_idx => $pair):
-                                        $parts = explode(':', $pair);
-                                        $premise = trim($parts[0]);
+
+                                    foreach ($premises as $p_idx => $premise):
                                         ?>
                                         <div
                                             class="flex flex-col md:flex-row md:items-center gap-4 bg-white/5 p-6 rounded-3xl border border-white/10">
-                                            <span class="flex-1 font-bold text-white"><?= $premise ?></span>
+                                            <span class="flex-1 font-bold text-white"><?= htmlspecialchars($premise) ?></span>
                                             <select name="q_<?= $q['id'] ?>_matching_<?= $p_idx ?>" required
                                                 class="bg-slate-900 text-accent-500 font-bold px-6 py-3 rounded-xl border border-white/10 outline-none focus:border-accent-500">
                                                 <option value="">Selecciona...</option>
                                                 <?php foreach ($answers as $ans): ?>
-                                                    <option value="<?= $ans ?>"><?= $ans ?></option>
+                                                    <option value="<?= htmlspecialchars($ans) ?>"><?= htmlspecialchars($ans) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
