@@ -39,7 +39,15 @@ try {
                 if (!is_dir($upload_dir))
                     mkdir($upload_dir, 0777, true);
 
-                $file_name = time() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", $_FILES['q_' . $q_id]['name']);
+                $original_name = pathinfo($_FILES['q_' . $q_id]['name'], PATHINFO_FILENAME);
+                $extension = pathinfo($_FILES['q_' . $q_id]['name'], PATHINFO_EXTENSION);
+                
+                // Sanitize filename: remove special chars, replace spaces/dots with _, avoid double __
+                $clean_name = preg_replace('/[^a-zA-Z0-9]/', '_', $original_name);
+                $clean_name = preg_replace('/_+/', '_', $clean_name);
+                $clean_name = trim($clean_name, '_');
+                
+                $file_name = time() . '_' . $clean_name . '.' . $extension;
                 $target_path = $upload_dir . $file_name;
 
                 if (move_uploaded_file($_FILES['q_' . $q_id]['tmp_name'], $target_path)) {

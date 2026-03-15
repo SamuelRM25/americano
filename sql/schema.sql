@@ -1,4 +1,4 @@
--- Database Schema for School Management System
+ -- Database Schema for School Management System
 
 CREATE TABLE IF NOT EXISTS grades (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS exam_responses (
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
     responses JSON, -- Store answers as JSON for flexibility
+    individual_scores JSON DEFAULT NULL, -- Points breakdown per question
     score DECIMAL(5,2) DEFAULT NULL, -- Auto-calculated grade
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,

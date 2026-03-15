@@ -17,7 +17,13 @@ if (isset($_FILES['submission']) && $_FILES['submission']['error'] === UPLOAD_ER
     $allowed_exts = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'zip', 'rar', 'txt'];
 
     if (in_array($file_ext, $allowed_exts)) {
-        $new_filename = uniqid('sub_') . '_' . $student_id . '.' . $file_ext;
+        $original_name = pathinfo($file_name, PATHINFO_FILENAME);
+        // Sanitize: remove non-alphanumeric, collapse underscores
+        $clean_name = preg_replace('/[^a-zA-Z0-9]/', '_', $original_name);
+        $clean_name = preg_replace('/_+/', '_', $clean_name);
+        $clean_name = trim($clean_name, '_');
+        
+        $new_filename = uniqid('sub_') . '_' . $student_id . '_' . $clean_name . '.' . $file_ext;
         $upload_dir = 'uploads/assignments/';
 
         if (!is_dir($upload_dir)) {
