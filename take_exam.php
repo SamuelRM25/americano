@@ -62,7 +62,7 @@ if ($exam['duration_minutes']) {
 }
 
 // Fetch questions
-$stmt = $pdo->prepare('SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY id ASC');
+$stmt = $pdo->prepare('SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY series ASC, id ASC');
 $stmt->execute([$exam_id]);
 $questions = $stmt->fetchAll();
 ?>
@@ -205,7 +205,20 @@ $questions = $stmt->fetchAll();
         <form id="exam-form" action="submit_exam.php" method="POST" enctype="multipart/form-data" class="space-y-12">
             <input type="hidden" name="exam_id" value="<?= $exam_id ?>">
 
-            <?php foreach ($questions as $index => $q): ?>
+            <?php 
+            $current_series = null;
+            foreach ($questions as $index => $q): 
+                if ($q['series'] !== $current_series): 
+                    $current_series = $q['series'];
+            ?>
+                <div class="pt-10 mb-4 animate-fade-in">
+                    <h2 class="text-3xl font-black text-white italic border-l-8 border-accent-500 pl-6 uppercase tracking-tight">
+                        <?= htmlspecialchars($current_series ?: 'Preguntas Generales') ?>
+                    </h2>
+                    <div class="h-1 w-24 bg-accent-500/30 mt-2 rounded-full"></div>
+                </div>
+            <?php endif; ?>
+
                 <div class="question-card p-10 rounded-[3rem] animate-slide-up"
                     style="animation-delay: <?= $index * 100 ?>ms">
                     <div class="flex items-start space-x-8">
@@ -248,7 +261,9 @@ $questions = $stmt->fetchAll();
                                     $answers = [];
                                     foreach ($pairs as $pair) {
                                         $parts = explode(':', $pair);
-                                        $answers[] = trim($parts[1]);
+                                        if (isset($parts[1])) {
+                                            $answers[] = trim($parts[1]);
+                                        }
                                     }
                                     shuffle($answers);
                                     foreach ($pairs as $p_idx => $pair):
@@ -271,12 +286,13 @@ $questions = $stmt->fetchAll();
                                 <?php elseif ($q['question_type'] === 'file_upload'): ?>
                                     <div class="relative group">
                                         <input type="file" name="q_<?= $q['id'] ?>" required
+                                            onchange="updateFileLabel(this, 'label_<?= $q['id'] ?>')"
                                             class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                                         <div
                                             class="p-10 border-2 border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center group-hover:bg-white/5 group-hover:border-accent-500/50 transition-all">
                                             <i data-lucide="upload-cloud"
                                                 class="w-12 h-12 text-slate-500 group-hover:text-accent-500 mb-4 transition-colors"></i>
-                                            <span class="text-sm font-black text-slate-400 uppercase tracking-widest">Subir
+                                            <span id="label_<?= $q['id'] ?>" class="text-sm font-black text-slate-400 uppercase tracking-widest text-center">Subir
                                                 Evidencia</span>
                                             <p class="text-xs text-slate-600 mt-2">Formatos permitidos: PDF, JPG, PNG (Max 10MB)
                                             </p>
@@ -302,6 +318,17 @@ $questions = $stmt->fetchAll();
 
     <script>
         lucide.createIcons();
+
+        function updateFileLabel(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files[0]) {
+                const fileName = input.files[0].name;
+                label.textContent = "✓ " + fileName;
+                label.classList.remove('text-slate-400');
+                label.classList.add('text-accent-500');
+            }
+        }
+
         <?php if ($deadline): ?>
         const examDeadline = <?= $deadline ?> * 1000;
         function updateTimer() {
