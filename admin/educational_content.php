@@ -57,8 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_content'])) {
             if ($type === 'presentation') {
                 if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
                     $ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
-                    $filename = uniqid('pres_') . '.' . $ext;
+                     $filename = uniqid('pres_') . '.' . $ext;
                     $dest = 'uploads/presentations/' . $filename;
+                    if (!is_dir('uploads/presentations/')) {
+                        mkdir('uploads/presentations/', 0777, true);
+                    }
                     if (move_uploaded_file($_FILES['file']['tmp_name'], $dest)) {
                         $file_path = $dest;
                     } else {
