@@ -29,11 +29,12 @@ $placeholders = implode(',', array_fill(0, count($course_ids), '?'));
 
 // Fetch exams and check if already taken
 $stmt = $pdo->prepare("SELECT e.*, 
-                       (SELECT COUNT(*) FROM exam_responses er WHERE er.exam_id = e.id AND er.student_id = ?) as is_taken
+                       (SELECT COUNT(*) FROM exam_responses er WHERE er.exam_id = e.id AND er.student_id = ?) as is_taken,
+                       (SELECT er.score FROM exam_responses er WHERE er.exam_id = e.id AND er.student_id = ? ORDER BY submitted_at DESC LIMIT 1) as score
                        FROM exams e 
                        WHERE e.grade_id = ? AND e.course_id IN ($placeholders)
                        ORDER BY e.due_date ASC");
-$stmt->execute(array_merge([$student_id, $grade_id], $course_ids));
+$stmt->execute(array_merge([$student_id, $student_id, $grade_id], $course_ids));
 $exams = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -237,9 +238,16 @@ $exams = $stmt->fetchAll();
                                 $expired = ($now > $due);
                                 ?>
                                 <?php if ($exam['is_taken']): ?>
-                                    <div class="w-full bg-emerald-50 text-emerald-600 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-emerald-100">
-                                        <i data-lucide="check-circle" class="w-4 h-4"></i>
-                                        <span>Completado</span>
+                                    <div class="w-full bg-emerald-50 text-emerald-600 font-black py-5 rounded-2xl flex flex-col items-center justify-center space-y-1 text-xs uppercase tracking-widest border border-emerald-100 italic">
+                                        <div class="flex items-center space-x-3">
+                                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                            <span>Completado</span>
+                                        </div>
+                                        <?php if ($exam['score'] !== null): ?>
+                                            <span class="text-emerald-500 font-black text-lg tracking-tight normal-case">Nota: <?= floatval($exam['score']) ?> pts</span>
+                                        <?php else: ?>
+                                            <span class="text-emerald-400 font-medium opacity-70 normal-case tracking-normal">Pendiente de calificar</span>
+                                        <?php endif; ?>
                                     </div>
                                 <?php elseif ($expired): ?>
                                     <div class="w-full bg-rose-50 text-rose-500 font-black py-5 rounded-2xl flex items-center justify-center space-x-3 text-xs uppercase tracking-widest border border-rose-100">

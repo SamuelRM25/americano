@@ -42,6 +42,30 @@ if (!$submission) {
 }
 
 $answers = json_decode($submission['responses'], true) ?? [];
+$individual_scores = json_decode($submission['individual_scores'] ?? '{}', true) ?? [];
+
+// Handle Grading Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
+    $new_individual_scores = $_POST['question_scores'] ?? [];
+    $total_score = 0;
+    foreach ($new_individual_scores as $pts) {
+        $total_score += floatval($pts);
+    }
+    
+    try {
+        $upd = $pdo->prepare("UPDATE exam_responses SET individual_scores = ?, score = ? WHERE exam_id = ? AND student_id = ?");
+        $upd->execute([json_encode($new_individual_scores), $total_score, $exam_id, $student_id]);
+        header("Location: view_exam_submission.php?exam_id=$exam_id&student_id=$student_id&msg=graded");
+        exit;
+    } catch (Exception $e) {
+        $error = "Error al guardar calificación: " . $e->getMessage();
+    }
+}
+
+$success_msg = '';
+if (isset($_GET['msg']) && $_GET['msg'] === 'graded') {
+    $success_msg = "Calificación guardada correctamente.";
+}
 
 // Get Questions and group by series (same logic as edit_exam.php)
 $stmt = $pdo->prepare("SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY COALESCE(series, 'zzzz'), id ASC");
@@ -75,7 +99,7 @@ $typeLabels = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Revisar Examen - Admin</title>
+    <title>Calificar Examen - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -90,28 +114,33 @@ $typeLabels = [
                             50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa',
                             500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95',
                         }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
                     }
                 }
             }
         }
     </script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
     <style>
-        body { background-color: #f8fafc; }
-        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        body { font-family: 'Outfit', sans-serif; background-color: #f8fafc; }
+        .grade-input::-webkit-inner-spin-button, .grade-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-accent-500 selection:text-white pb-24 lg:pb-0">
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-accent-500 selection:text-white pb-32">
 
-    <?php render_admin_sidebar(''); ?>
+    <?php render_admin_sidebar('submissions'); ?>
 
-    <div class="lg:ml-[5.5rem] p-6 lg:p-12 min-h-screen">
-        <main class="max-w-4xl mx-auto space-y-8 animate-fade-in">
+    <main class="lg:ml-80 p-6 lg:p-12 min-h-screen">
+        <div class="max-w-4xl mx-auto space-y-8 animate-fade-in text-slate-900">
             <!-- Header -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                 <div class="flex items-center space-x-6">
@@ -119,118 +148,179 @@ $typeLabels = [
                         <i data-lucide="arrow-left" class="w-6 h-6 group-active:-translate-x-1 transition-transform"></i>
                     </a>
                     <div>
-                        <h1 class="text-4xl font-black text-slate-900 tracking-tighter italic">Revisar <span class="text-accent-500">Examen</span></h1>
+                        <h1 class="text-4xl font-black text-slate-950 tracking-tighter italic uppercase">Revisar <span class="text-accent-500">Examen</span></h1>
                         <p class="text-slate-500 font-bold tracking-tight mt-1 flex items-center gap-2">
-                            <span><?= htmlspecialchars($student['name']) ?></span>
+                            <span><?= htmlspecialchars($student['name'] ?? 'Estudiante') ?></span>
                             <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span><?= htmlspecialchars($exam['title']) ?></span>
+                            <span><?= htmlspecialchars($exam['title'] ?? 'Examen') ?></span>
                         </p>
                     </div>
                 </div>
             </div>
 
-            <!-- Meta Info -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-                    <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Entregado el</p>
-                    <p class="font-bold text-slate-800 tracking-tight"><?= date('d M, Y', strtotime($submission['submitted_at'])) ?></p>
-                    <p class="text-xs text-slate-400 font-bold"><?= date('h:i A', strtotime($submission['submitted_at'])) ?></p>
+            <?php if ($success_msg): ?>
+                <div class="bg-emerald-50 border border-emerald-100 text-emerald-700 px-6 py-4 rounded-3xl text-sm font-bold flex items-center animate-slide-up shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-3"></i> <?= $success_msg ?>
                 </div>
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-                    <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Preguntas</p>
-                    <p class="text-2xl font-black text-slate-800 tracking-tighter"><?= count($questions) ?></p>
-                </div>
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-                    <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Puntos Posibles</p>
-                    <p class="text-2xl font-black text-accent-600 tracking-tighter"><?= $total_score_possible ?></p>
-                </div>
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-                    <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Respondidas</p>
-                    <p class="text-2xl font-black text-emerald-500 tracking-tighter"><?= count(array_filter($answers)) ?>/<?= count($questions) ?></p>
-                </div>
-            </div>
+            <?php endif; ?>
 
-            <!-- Responses list -->
-            <div class="space-y-10">
-                <?php
-                if (empty($questions)): ?>
-                    <div class="p-12 text-center rounded-[2.5rem] bg-white border border-slate-100 shadow-xl">
-                        <p class="font-bold text-slate-400 italic">No hay preguntas registradas en este examen.</p>
+            <?php if (isset($error)): ?>
+                <div class="bg-rose-50 border border-rose-100 text-rose-700 px-6 py-4 rounded-3xl text-sm font-bold flex items-center animate-shake">
+                    <i data-lucide="alert-circle" class="w-5 h-5 mr-3"></i> <?= $error ?>
+                </div>
+            <?php endif; ?>
+
+            <form action="" method="POST" id="grading-form">
+                <input type="hidden" name="save_grades" value="1">
+                
+                <!-- Meta Info Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 group hover:border-accent-200 transition-all">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Entregado el</p>
+                        <p class="font-bold text-slate-800 tracking-tight leading-none"><?= date('d M, Y', strtotime($submission['submitted_at'])) ?></p>
+                        <p class="text-[10px] text-slate-400 font-bold mt-1"><?= date('h:i A', strtotime($submission['submitted_at'])) ?></p>
                     </div>
-                <?php else:
-                    $qNum = 0;
-                    foreach ($grouped_questions as $seriesName => $seriesQs): ?>
-                        <div class="bg-white rounded-[3.5rem] p-10 shadow-xl shadow-slate-200/50 border border-slate-100">
-                            <!-- Series Header -->
-                            <div class="flex items-center gap-4 mb-8">
-                                <div class="h-px flex-1 bg-slate-100"></div>
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100">
-                                    <?= htmlspecialchars($seriesName) ?>
-                                </span>
-                                <div class="h-px flex-1 bg-slate-100"></div>
-                            </div>
-                            
-                            <div class="space-y-8">
-                                <?php foreach ($seriesQs as $q):
-                                    $qNum++;
-                                    $tl = $typeLabels[$q['question_type']] ?? ['label' => $q['question_type'], 'color' => 'bg-slate-100 text-slate-500'];
-                                    $student_answer = $answers[$q['id']] ?? '';
-                                    $is_file = ($q['question_type'] === 'file_upload');
-                                ?>
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Puntos Posibles</p>
+                        <p class="text-3xl font-black text-slate-950 tracking-tighter"><?= $total_score_possible ?></p>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Calificación</p>
+                        <p class="text-3xl font-black text-accent-600 tracking-tighter italic">
+                            <span id="current-total-score"><?= $submission['score'] ?? '0' ?></span>
+                        </p>
+                    </div>
+                     <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Progreso</p>
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl font-black text-emerald-500 tracking-tighter"><?= count(array_filter($answers)) ?></span>
+                            <span class="text-sm font-bold text-slate-300">/ <?= count($questions) ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Responses list -->
+                <div class="space-y-12">
+                    <?php if (empty($questions)): ?>
+                        <div class="p-16 text-center rounded-[3rem] bg-white border border-slate-100 shadow-xl">
+                            <i data-lucide="clipboard-x" class="w-12 h-12 mx-auto mb-4 text-slate-200"></i>
+                            <p class="font-bold text-slate-400 italic">No hay preguntas registradas.</p>
+                        </div>
+                    <?php else:
+                        $qNum = 0;
+                        foreach ($grouped_questions as $seriesName => $seriesQs): ?>
+                            <div class="animate-slide-up" style="animation-delay: <?= $qNum * 100 ?>ms">
+                                <div class="flex items-center gap-6 mb-8">
+                                    <h2 class="text-3xl font-black text-slate-950 italic tracking-tighter uppercase whitespace-nowrap">
+                                        <?= htmlspecialchars($seriesName) ?>
+                                    </h2>
+                                    <div class="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent"></div>
+                                </div>
                                 
-                                <div class="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100">
-                                    <div class="flex justify-between items-start mb-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 bg-slate-200 rounded-xl flex items-center justify-center font-black text-slate-600 text-sm">
-                                                <?= $qNum ?>
+                                <div class="space-y-6">
+                                    <?php foreach ($seriesQs as $q):
+                                        $qNum++;
+                                        $tl = $typeLabels[$q['question_type']] ?? ['label' => $q['question_type'], 'color' => 'bg-slate-100 text-slate-500'];
+                                        $student_answer = $answers[$q['id']] ?? '';
+                                        $is_file = ($q['question_type'] === 'file_upload');
+                                        $saved_pts = $individual_scores[$q['id']] ?? 0;
+                                    ?>
+                                    
+                                    <div class="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-lg shadow-slate-200/50 group hover:border-accent-200 transition-all">
+                                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                            <div class="flex items-center gap-4">
+                                                <div class="w-10 h-10 bg-slate-950 text-white rounded-xl flex items-center justify-center font-black text-sm italic">
+                                                    <?= $qNum ?>
+                                                </div>
+                                                <span class="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg <?= $tl['color'] ?>">
+                                                    <?= $tl['label'] ?>
+                                                </span>
                                             </div>
-                                            <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg <?= $tl['color'] ?>">
-                                                <?= $tl['label'] ?>
-                                            </span>
-                                            <span class="text-[10px] uppercase font-black text-slate-400 border border-slate-200 px-2 py-0.5 rounded-md">
-                                                <?= $q['points'] ?> pts
-                                            </span>
+                                            
+                                            <!-- Points Input -->
+                                            <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 group-hover:bg-accent-50 group-hover:border-accent-100 transition-colors">
+                                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-accent-600">Calificación</span>
+                                                <div class="flex items-center">
+                                                    <input type="number" name="question_scores[<?= $q['id'] ?>]" 
+                                                        value="<?= $saved_pts ?>" min="0" max="<?= $q['points'] ?>" step="0.5"
+                                                        oninput="updateTotalScore()"
+                                                        class="w-14 bg-white border border-slate-200 rounded-xl px-2 py-2 text-center font-black text-slate-900 focus:border-accent-500 outline-none grade-input shadow-sm">
+                                                    <span class="ml-2 text-xs font-bold text-slate-300">/ <?= $q['points'] ?> pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <p class="text-lg font-bold text-slate-900 leading-snug tracking-tight italic"><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
+                                        </div>
+
+                                        <div class="bg-slate-50/80 p-6 rounded-3xl border border-slate-100 relative group-hover:bg-white transition-colors">
+                                            <span class="absolute -top-3 left-6 bg-white px-3 py-0.5 rounded-full border border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-400">Respuesta del Alumno</span>
+                                            
+                                            <?php if ($student_answer === ''): ?>
+                                                <p class="text-slate-400 italic text-sm font-bold flex items-center gap-3">
+                                                    <i data-lucide="slash" class="w-4 h-4 text-rose-300"></i> No respondida
+                                                </p>
+                                            <?php elseif ($is_file): ?>
+                                                <div class="flex items-center gap-4">
+                                                    <a href="../<?= htmlspecialchars($student_answer) ?>" target="_blank" 
+                                                        class="inline-flex items-center gap-3 px-6 py-3 bg-slate-950 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-accent-600 transition-all shadow-xl shadow-slate-200">
+                                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                                        Ver Evidencia
+                                                    </a>
+                                                    <span class="text-[10px] text-slate-400 font-bold italic"><?= basename($student_answer) ?></span>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="text-slate-700 font-bold whitespace-pre-wrap leading-relaxed text-base italic"><?= htmlspecialchars($student_answer) ?></div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-
-                                    <div class="mb-5">
-                                        <p class="font-bold text-slate-900 leading-snug"><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
-                                    </div>
-
-                                    <div class="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm relative">
-                                        <span class="absolute -top-3 left-4 bg-white px-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Respuesta del Alumno</span>
-                                        
-                                        <?php if ($student_answer === ''): ?>
-                                            <p class="text-slate-400 italic text-sm font-bold flex items-center gap-2">
-                                                <i data-lucide="x-circle" class="w-4 h-4 text-rose-300"></i> No respondida
-                                            </p>
-                                        <?php elseif ($is_file): ?>
-                                            <a href="../<?= htmlspecialchars($student_answer) ?>" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold text-slate-700 transition-colors">
-                                                <i data-lucide="file-down" class="w-4 h-4 text-accent-600"></i>
-                                                Descargar / Ver Evidencia Adjunta
-                                            </a>
-                                        <?php else: ?>
-                                            <p class="text-slate-700 font-bold whitespace-pre-wrap leading-relaxed"><?= htmlspecialchars($student_answer) ?></p>
-                                        <?php endif; ?>
-                                    </div>
+                                    <?php endforeach; ?>
                                 </div>
-                                <?php endforeach; ?>
                             </div>
+                        <?php endforeach;
+                    endif; ?>
+                </div>
+
+                <!-- Floating Save Bar -->
+                <div class="fixed bottom-10 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-12 z-50 animate-slide-up" style="animation-delay: 400ms">
+                    <div class="bg-slate-950/90 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/10 shadow-2xl flex items-center gap-6 pr-6">
+                        <div class="pl-4">
+                            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Nota Final</p>
+                            <p class="text-2xl font-black text-white italic tracking-tighter leading-none">
+                                <span id="footer-total-score"><?= $submission['score'] ?? '0' ?></span>
+                                <span class="text-xs text-slate-600 tracking-normal ml-1">/ <?= $total_score_possible ?></span>
+                            </p>
                         </div>
-                    <?php endforeach;
-                endif; ?>
-            </div>
-            
-            <div class="flex justify-end pt-6">
-                <a href="submissions.php" class="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-xs hover:bg-accent-600 transition-colors shadow-xl shadow-slate-200">
-                    Regresar a Entregas
-                </a>
-            </div>
-        </main>
-    </div>
+                        <button type="submit" class="bg-accent-500 hover:bg-accent-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center gap-3 shadow-xl shadow-accent-500/20 active:scale-95">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            Guardar Nota
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
 
     <script>
         lucide.createIcons();
+
+        function updateTotalScore() {
+            let total = 0;
+            const inputs = document.querySelectorAll('.grade-input');
+            inputs.forEach(input => {
+                total += parseFloat(input.value || 0);
+            });
+            
+            // Format to 1 decimal place if needed
+            const formattedTotal = Number.isInteger(total) ? total : total.toFixed(1);
+            
+            document.getElementById('current-total-score').textContent = formattedTotal;
+            document.getElementById('footer-total-score').textContent = formattedTotal;
+        }
+
+        // Initialize lucide on potential dynamic elements if any were added
+        document.addEventListener('DOMContentLoaded', updateTotalScore);
     </script>
 </body>
 </html>
