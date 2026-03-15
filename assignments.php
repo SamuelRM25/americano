@@ -29,7 +29,7 @@ $placeholders = implode(',', array_fill(0, count($course_ids), '?'));
 
 // Fetch assignments and check if already submitted
 $stmt = $pdo->prepare("SELECT a.*, c.name as course_name,
-                       (SELECT COUNT(*) FROM student_assignments sa WHERE sa.assignment_id = a.id AND sa.student_id = ?) as is_submitted
+                       (SELECT COUNT(*) FROM submissions sa WHERE sa.assignment_id = a.id AND sa.student_id = ?) as is_submitted
                        FROM assignments a 
                        JOIN courses c ON a.course_id = c.id
                        WHERE a.grade_id = ? AND a.course_id IN ($placeholders)

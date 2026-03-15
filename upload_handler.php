@@ -44,7 +44,6 @@ if (isset($_FILES['submission']) && $_FILES['submission']['error'] === UPLOAD_ER
     header('Location: assignments.php?msg=error&error=Error+en+el+archivo+subido');
     exit;
 }
-exit;
 
 function move_uploaded_at_file($tmp, $dest)
 {
