@@ -247,7 +247,7 @@ $questions = $stmt->fetchAll();
                                             class="flex items-center p-6 input-premium rounded-2xl cursor-pointer hover:bg-white/5 group transition-all">
                                             <input type="<?= $input_type ?>"
                                                 name="q_<?= $q['id'] ?><?= $input_type === 'checkbox' ? '[]' : '' ?>"
-                                                value="<?= $opt ?>" required
+                                                value="<?= $opt ?>" <?= $input_type !== 'checkbox' ? 'required' : '' ?>
                                                 class="w-5 h-5 border-2 border-white/20 bg-transparent rounded-lg checked:bg-accent-500 checked:border-accent-500 transition-all cursor-pointer">
                                             <span
                                                 class="ml-5 text-lg font-bold text-slate-400 group-hover:text-white transition-colors"><?= $opt ?></span>
