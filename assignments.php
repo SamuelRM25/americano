@@ -214,7 +214,7 @@ $assignments = $stmt->fetchAll();
                                     <i data-lucide="calendar" class="w-4 h-4 mr-3 text-accent-500"></i>
                                     Vence: <?= date('d M, Y', strtotime($assignment['due_date'])) ?>
                                 </div>
-                                <?php if ($assignment['file_path']): ?>
+                                <?php if (!empty($assignment['file_path'])): ?>
                                     <a href="admin/<?= $assignment['file_path'] ?>" download
                                         class="flex items-center text-xs font-black text-accent-600 uppercase tracking-widest hover:text-accent-700 transition-colors">
                                         <i data-lucide="download" class="w-4 h-4 mr-2"></i>
