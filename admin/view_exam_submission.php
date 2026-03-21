@@ -135,11 +135,11 @@ $typeLabels = [
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-800 antialiased selection:bg-accent-500 selection:text-white pb-32">
+<body class="bg-[#f8fafc] h-screen flex overflow-hidden text-slate-800 antialiased selection:bg-accent-500 selection:text-white">
 
     <?php render_admin_sidebar('submissions'); ?>
 
-    <main class="lg:ml-80 p-6 lg:p-12 min-h-screen">
+    <main class="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-12 animate-fade-in custom-scrollbar pb-32">
         <div class="max-w-4xl mx-auto space-y-8 animate-fade-in text-slate-900">
             <!-- Header -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
