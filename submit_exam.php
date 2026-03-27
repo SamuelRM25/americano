@@ -103,7 +103,11 @@ try {
                 }
             } elseif ($type === 'matching') {
                 $student_parts = array_map('trim', explode('|', $response));
-                $correct_parts = array_map('trim', array_values($correct_answers_arr));
+                $options_arr = json_decode($q['options'] ?? '[]', true);
+                $correct_parts = [];
+                foreach ($options_arr as $concept) {
+                    $correct_parts[] = trim($correct_answers_arr[$concept] ?? '');
+                }
                 $correct_count = 0;
                 $total_pairs = count($correct_parts);
                 for ($i = 0; $i < $total_pairs; $i++) {
