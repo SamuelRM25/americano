@@ -224,13 +224,15 @@ $typeLabels = [
                                         $student_answer = $answers[$q['id']] ?? '';
                                         $is_file = ($q['question_type'] === 'file_upload');
                                         
+                                        $correct_answers_arr = json_decode($q['correct_answers'] ?? '[]', true);
+                                        $has_correct_answer = !empty($correct_answers_arr) && $q['question_type'] !== 'paragraph' && $q['question_type'] !== 'file_upload';
+                                        
                                         // Auto-calculate for display if not saved yet
                                         if (isset($individual_scores[$q['id']])) {
                                             $saved_pts = $individual_scores[$q['id']];
                                         } else {
                                             $saved_pts = 0;
-                                            $correct_answers_arr = json_decode($q['correct_answers'] ?? '[]', true);
-                                            if (!empty($correct_answers_arr) && $q['question_type'] !== 'paragraph' && $q['question_type'] !== 'file_upload') {
+                                            if ($has_correct_answer) {
                                                 $student_correct = false;
                                                 $t = $q['question_type'];
                                                 if ($t === 'text') {
@@ -264,14 +266,22 @@ $typeLabels = [
                                             </div>
                                             
                                             <!-- Points Input -->
-                                            <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 group-hover:bg-accent-50 group-hover:border-accent-100 transition-colors">
-                                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-accent-600">Calificación</span>
-                                                <div class="flex items-center">
-                                                    <input type="number" name="question_scores[<?= $q['id'] ?>]" 
-                                                        value="<?= $saved_pts ?>" min="0" max="<?= $q['points'] ?>" step="0.5"
-                                                        oninput="updateTotalScore()"
-                                                        class="w-14 bg-white border border-slate-200 rounded-xl px-2 py-2 text-center font-black text-slate-900 focus:border-accent-500 outline-none grade-input shadow-sm">
-                                                    <span class="ml-2 text-xs font-bold text-slate-300">/ <?= $q['points'] ?> pts</span>
+                                            <div class="flex items-center gap-3">
+                                                <?php if ($has_correct_answer): ?>
+                                                    <button type="button" onclick="openCorrectAnswerModal(<?= htmlspecialchars(json_encode([$q['question_type'], $correct_answers_arr]), ENT_QUOTES, 'UTF-8') ?>)" 
+                                                        class="p-2.5 bg-accent-50 text-accent-500 hover:bg-accent-500 hover:text-white rounded-xl transition-all border border-accent-100 shadow-sm flex items-center justify-center group/btn" title="Ver Respuesta Correcta">
+                                                        <i data-lucide="help-circle" class="w-4 h-4 group-hover/btn:scale-110 transition-transform"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                                <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 group-hover:bg-accent-50 group-hover:border-accent-100 transition-colors">
+                                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-accent-600">Calificación</span>
+                                                    <div class="flex items-center">
+                                                        <input type="number" name="question_scores[<?= $q['id'] ?>]" 
+                                                            value="<?= $saved_pts ?>" min="0" max="<?= $q['points'] ?>" step="0.5"
+                                                            oninput="updateTotalScore()"
+                                                            class="w-14 bg-white border border-slate-200 rounded-xl px-2 py-2 text-center font-black text-slate-900 focus:border-accent-500 outline-none grade-input shadow-sm">
+                                                        <span class="ml-2 text-xs font-bold text-slate-300">/ <?= $q['points'] ?> pts</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -328,8 +338,88 @@ $typeLabels = [
         </div>
     </main>
 
+    <!-- Modal Respuesta Correcta -->
+    <div id="correct-answer-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6 overflow-y-auto opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-lg rounded-[3.5rem] p-10 shadow-2xl relative transform scale-95 transition-transform duration-300" id="ca-modal-content">
+            <header class="flex justify-between items-start mb-8">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-950 tracking-tighter italic">Respuesta <span class="text-accent-500">Correcta</span></h3>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Definida por el profesor</p>
+                </div>
+                <button type="button" onclick="closeCorrectAnswerModal()" class="p-3 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-950 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </header>
+            <div id="ca-modal-body" class="space-y-4">
+                <!-- Content injected via JS -->
+            </div>
+            <div class="mt-8 pt-6 border-t border-slate-100 text-center">
+                <button type="button" onclick="closeCorrectAnswerModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-4 rounded-2xl transition-colors text-sm uppercase tracking-widest">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
+        
+        function openCorrectAnswerModal(data) {
+            const type = data[0];
+            const answers = data[1];
+            const modal = document.getElementById('correct-answer-modal');
+            const content = document.getElementById('ca-modal-content');
+            const body = document.getElementById('ca-modal-body');
+            
+            let html = '';
+            
+            if (type === 'matching') {
+                html += '<div class="space-y-3">';
+                for (const [concept, definition] of Object.entries(answers)) {
+                    html += `
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center">
+                            <span class="font-bold text-slate-700 text-sm flex-1">${concept}</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-slate-300 hidden sm:block"></i>
+                            <span class="font-black text-accent-600 text-sm flex-1 bg-accent-50 py-2 px-3 rounded-xl border border-accent-100">${definition}</span>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            } else if (type === 'checkbox') {
+                html += '<div class="flex flex-wrap gap-2">';
+                answers.forEach(ans => {
+                    html += `<span class="px-4 py-2 bg-accent-50 text-accent-600 font-bold rounded-xl border border-accent-100 text-sm flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4"></i> ${ans}</span>`;
+                });
+                html += '</div>';
+            } else {
+                html += `
+                    <div class="bg-accent-50/50 p-6 rounded-3xl border border-accent-100 text-center">
+                        <span class="text-xl font-black text-accent-600 italic tracking-tight">${answers[0]}</span>
+                    </div>
+                `;
+            }
+            
+            body.innerHTML = html;
+            lucide.createIcons();
+            
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            });
+        }
+
+        function closeCorrectAnswerModal() {
+            const modal = document.getElementById('correct-answer-modal');
+            const content = document.getElementById('ca-modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
 
         function updateTotalScore() {
             let total = 0;
