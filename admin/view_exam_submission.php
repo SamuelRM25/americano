@@ -223,7 +223,33 @@ $typeLabels = [
                                         $tl = $typeLabels[$q['question_type']] ?? ['label' => $q['question_type'], 'color' => 'bg-slate-100 text-slate-500'];
                                         $student_answer = $answers[$q['id']] ?? '';
                                         $is_file = ($q['question_type'] === 'file_upload');
-                                        $saved_pts = $individual_scores[$q['id']] ?? 0;
+                                        
+                                        // Auto-calculate for display if not saved yet
+                                        if (isset($individual_scores[$q['id']])) {
+                                            $saved_pts = $individual_scores[$q['id']];
+                                        } else {
+                                            $saved_pts = 0;
+                                            $correct_answers_arr = json_decode($q['correct_answers'] ?? '[]', true);
+                                            if (!empty($correct_answers_arr) && $q['question_type'] !== 'paragraph' && $q['question_type'] !== 'file_upload') {
+                                                $student_correct = false;
+                                                $t = $q['question_type'];
+                                                if ($t === 'text') {
+                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $student_correct = true;
+                                                } elseif ($t === 'multiple_choice' || $t === 'true_false') {
+                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $student_correct = true;
+                                                } elseif ($t === 'checkbox') {
+                                                    $student_arr = array_map('trim', explode(',', $student_answer));
+                                                    $correct_arr = array_map('trim', $correct_answers_arr);
+                                                    sort($student_arr); sort($correct_arr);
+                                                    if ($student_arr === $correct_arr && !empty(array_filter($student_arr))) $student_correct = true;
+                                                } elseif ($t === 'matching') {
+                                                    $student_parts = array_map('trim', explode('|', $student_answer));
+                                                    $correct_parts = array_map('trim', array_values($correct_answers_arr));
+                                                    if ($student_parts === $correct_parts && !empty(array_filter($student_parts))) $student_correct = true;
+                                                }
+                                                $saved_pts = $student_correct ? floatval($q['points']) : 0;
+                                            }
+                                        }
                                     ?>
                                     
                                     <div class="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-lg shadow-slate-200/50 group hover:border-accent-200 transition-all">

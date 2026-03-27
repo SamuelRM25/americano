@@ -19,7 +19,7 @@ if ($check->fetch()) {
 }
 
 // Fetch all questions for this exam to process them
-$stmt = $pdo->prepare('SELECT id, question_type FROM exam_questions WHERE exam_id = ?');
+$stmt = $pdo->prepare('SELECT id, question_type, points, correct_answers FROM exam_questions WHERE exam_id = ?');
 $stmt->execute([$exam_id]);
 $questions = $stmt->fetchAll();
 
@@ -27,6 +27,8 @@ try {
     $pdo->beginTransaction();
 
     $responses_data = [];
+    $individual_scores = [];
+    $total_score = 0;
 
     foreach ($questions as $q) {
         $q_id = $q['id'];
@@ -71,10 +73,43 @@ try {
         }
 
         $responses_data[$q_id] = $response;
+
+        // Auto-grading logic
+        $correct_answers_arr = json_decode($q['correct_answers'] ?? '[]', true);
+        if (!empty($correct_answers_arr) && $type !== 'paragraph' && $type !== 'file_upload') {
+            $student_correct = false;
+            if ($type === 'text') {
+                if (trim(mb_strtolower($response)) === trim(mb_strtolower($correct_answers_arr[0]))) {
+                    $student_correct = true;
+                }
+            } elseif ($type === 'multiple_choice' || $type === 'true_false') {
+                if (trim(mb_strtolower($response)) === trim(mb_strtolower($correct_answers_arr[0]))) {
+                    $student_correct = true;
+                }
+            } elseif ($type === 'checkbox') {
+                $student_arr = array_map('trim', explode(',', $response));
+                $correct_arr = array_map('trim', $correct_answers_arr);
+                sort($student_arr);
+                sort($correct_arr);
+                if ($student_arr === $correct_arr && !empty(array_filter($student_arr))) {
+                    $student_correct = true;
+                }
+            } elseif ($type === 'matching') {
+                $student_parts = array_map('trim', explode('|', $response));
+                $correct_parts = array_map('trim', array_values($correct_answers_arr));
+                if ($student_parts === $correct_parts && !empty(array_filter($student_parts))) {
+                    $student_correct = true;
+                }
+            }
+            
+            $earned = $student_correct ? floatval($q['points']) : 0;
+            $individual_scores[$q_id] = $earned;
+            $total_score += $earned;
+        }
     }
 
-    $ins = $pdo->prepare('INSERT INTO exam_responses (exam_id, student_id, responses) VALUES (?, ?, ?)');
-    $ins->execute([$exam_id, $student_id, json_encode($responses_data)]);
+    $ins = $pdo->prepare('INSERT INTO exam_responses (exam_id, student_id, responses, individual_scores, score) VALUES (?, ?, ?, ?, ?)');
+    $ins->execute([$exam_id, $student_id, json_encode($responses_data), json_encode($individual_scores), $total_score]);
     $pdo->commit();
     header('Location: exams.php?msg=success');
 } catch (Exception $e) {
