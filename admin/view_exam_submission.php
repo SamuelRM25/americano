@@ -233,23 +233,32 @@ $typeLabels = [
                                         } else {
                                             $saved_pts = 0;
                                             if ($has_correct_answer) {
-                                                $student_correct = false;
+                                                $earned = 0;
                                                 $t = $q['question_type'];
                                                 if ($t === 'text') {
-                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $student_correct = true;
+                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $earned = floatval($q['points']);
                                                 } elseif ($t === 'multiple_choice' || $t === 'true_false') {
-                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $student_correct = true;
+                                                    if (trim(mb_strtolower($student_answer)) === trim(mb_strtolower($correct_answers_arr[0]))) $earned = floatval($q['points']);
                                                 } elseif ($t === 'checkbox') {
                                                     $student_arr = array_map('trim', explode(',', $student_answer));
                                                     $correct_arr = array_map('trim', $correct_answers_arr);
                                                     sort($student_arr); sort($correct_arr);
-                                                    if ($student_arr === $correct_arr && !empty(array_filter($student_arr))) $student_correct = true;
+                                                    if ($student_arr === $correct_arr && !empty(array_filter($student_arr))) $earned = floatval($q['points']);
                                                 } elseif ($t === 'matching') {
                                                     $student_parts = array_map('trim', explode('|', $student_answer));
                                                     $correct_parts = array_map('trim', array_values($correct_answers_arr));
-                                                    if ($student_parts === $correct_parts && !empty(array_filter($student_parts))) $student_correct = true;
+                                                    $correct_count = 0;
+                                                    $total_pairs = count($correct_parts);
+                                                    for ($i = 0; $i < $total_pairs; $i++) {
+                                                        if (isset($student_parts[$i]) && $student_parts[$i] === $correct_parts[$i]) {
+                                                            $correct_count++;
+                                                        }
+                                                    }
+                                                    if ($total_pairs > 0) {
+                                                        $earned = round(($correct_count / $total_pairs) * floatval($q['points']), 1);
+                                                    }
                                                 }
-                                                $saved_pts = $student_correct ? floatval($q['points']) : 0;
+                                                $saved_pts = $earned;
                                             }
                                         }
                                     ?>

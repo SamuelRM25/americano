@@ -19,7 +19,7 @@ if ($check->fetch()) {
 }
 
 // Fetch all questions for this exam to process them
-$stmt = $pdo->prepare('SELECT id, question_type, points, correct_answers FROM exam_questions WHERE exam_id = ?');
+$stmt = $pdo->prepare('SELECT id, question_type, points, correct_answers, options FROM exam_questions WHERE exam_id = ?');
 $stmt->execute([$exam_id]);
 $questions = $stmt->fetchAll();
 
@@ -57,13 +57,20 @@ try {
                 }
             }
         } elseif ($type === 'matching') {
-            $matching_parts = [];
-            foreach ($_POST as $key => $val) {
-                if (strpos($key, 'q_' . $q_id . '_matching_') === 0) {
-                    $matching_parts[] = $val;
+            $matching_data = [];
+            // Parse options to know how many pairs exist, or fallback to 50
+            $options_count = count(json_decode($q['options'] ?? '[]', true));
+            if ($options_count == 0) $options_count = 50;
+            for ($i = 0; $i < $options_count; $i++) {
+                $key = 'q_' . $q_id . '_matching_' . $i;
+                if (isset($_POST[$key])) {
+                    $matching_data[$i] = $_POST[$key];
+                } elseif ($i < count(json_decode($q['options'] ?? '[]', true))) {
+                    $matching_data[$i] = ''; // missing answer fallback
                 }
             }
-            $response = implode(' | ', $matching_parts);
+            ksort($matching_data);
+            $response = implode(' | ', $matching_data);
         } elseif ($type === 'checkbox') {
             if (isset($_POST['q_' . $q_id])) {
                 $response = implode(', ', (array) $_POST['q_' . $q_id]);
@@ -77,14 +84,14 @@ try {
         // Auto-grading logic
         $correct_answers_arr = json_decode($q['correct_answers'] ?? '[]', true);
         if (!empty($correct_answers_arr) && $type !== 'paragraph' && $type !== 'file_upload') {
-            $student_correct = false;
+            $earned = 0;
             if ($type === 'text') {
                 if (trim(mb_strtolower($response)) === trim(mb_strtolower($correct_answers_arr[0]))) {
-                    $student_correct = true;
+                    $earned = floatval($q['points']);
                 }
             } elseif ($type === 'multiple_choice' || $type === 'true_false') {
                 if (trim(mb_strtolower($response)) === trim(mb_strtolower($correct_answers_arr[0]))) {
-                    $student_correct = true;
+                    $earned = floatval($q['points']);
                 }
             } elseif ($type === 'checkbox') {
                 $student_arr = array_map('trim', explode(',', $response));
@@ -92,17 +99,23 @@ try {
                 sort($student_arr);
                 sort($correct_arr);
                 if ($student_arr === $correct_arr && !empty(array_filter($student_arr))) {
-                    $student_correct = true;
+                    $earned = floatval($q['points']);
                 }
             } elseif ($type === 'matching') {
                 $student_parts = array_map('trim', explode('|', $response));
                 $correct_parts = array_map('trim', array_values($correct_answers_arr));
-                if ($student_parts === $correct_parts && !empty(array_filter($student_parts))) {
-                    $student_correct = true;
+                $correct_count = 0;
+                $total_pairs = count($correct_parts);
+                for ($i = 0; $i < $total_pairs; $i++) {
+                    if (isset($student_parts[$i]) && $student_parts[$i] === $correct_parts[$i]) {
+                        $correct_count++;
+                    }
+                }
+                if ($total_pairs > 0) {
+                    $earned = round(($correct_count / $total_pairs) * floatval($q['points']), 1);
                 }
             }
             
-            $earned = $student_correct ? floatval($q['points']) : 0;
             $individual_scores[$q_id] = $earned;
             $total_score += $earned;
         }
